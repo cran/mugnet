@@ -1,0 +1,28 @@
+
+importClassesFrom(methods, ANY, character, list, logical, matrix,
+                  missing, "NULL", numeric, oldClass, vector)
+importMethodsFrom(methods, coerce, initialize, show)
+
+importFrom(methods, "@<-", as, callGeneric, is, isVirtualClass, new,
+           slot, "slot<-", slotNames, validObject)
+importFrom(stats, as.dist, dhyper, phyper, runif)
+importFrom(tools, package.dependencies)
+importFrom(utils, CRAN.packages, modifyList)
+
+importClassesFrom(catnet, catNetwork)
+importMethodsFrom(catnet, cnComplexity)
+importMethodsFrom(catnet, cnLoglik)
+importMethodsFrom(catnet, cnReorderNodes)
+
+useDynLib(mugnet)
+
+exportClasses(mgNetwork)
+
+exportMethods(
+	mgBeta, mgSigma, mgPredict, mgSamples, mgFromCatnet, mgNodeLoglik, cnLoglik,  cnReorderNodes
+)
+
+export(
+	mgNew, mgSearchOrder
+) 
+
