@@ -217,7 +217,7 @@ int estimate(
 	case 2:  // BIC
 		pCurNet = 0;
 		fLogLik = -FLT_MAX;
-		ftemp = 0.5*log(numSamples);
+		ftemp = 0.5*log((t_prob)numSamples);
 		for(nCurNet = 0; nCurNet < m_nNets; nCurNet++) {
 			if(!m_pCurNets[nCurNet])
 				continue;
@@ -246,7 +246,7 @@ int estimate(
 	// work with the sample distribution of pCurNet if necessary
 	if(pCurNet->maxParentSet() > 2 || pCurNet->maxCategories()*pCurNet->maxParentSet() > 5 || 
 		numNodes*pCurNet->maxCategories()*pCurNet->maxParentSet() > 80) {
-		k = (int)exp(log(pCurNet->maxCategories())*(1+pCurNet->maxParentSet())) * 50;
+		k = (int)exp(log((t_prob)(pCurNet->maxCategories()))*(1+pCurNet->maxParentSet())) * 50;
 		if(becho)
 			printf("simulate probability with sample of size %d\n", k);
 		pCurNet->catnetSample(k);
@@ -714,7 +714,7 @@ int estimate(
 	case 2:  // BIC
 		j = 0;
 		fLogLik = -FLT_MAX;
-		ftemp = 0.5*log(numSamples);
+		ftemp = 0.5*log((t_prob)numSamples);
 		for(nCurNet = 0; nCurNet < m_nNets; nCurNet++) {
 			if(!m_pCurNets[nCurNet])
 				continue;

@@ -54,9 +54,9 @@ SEXP searchOrder(
 	
 	delete pengine;
 
-	char str[128];
-	sprintf(str, "Mem Balance  %d\n", (int)g_memcounter);
-	printf(str);
+	//char str[128];
+	//sprintf(str, "Mem Balance  %d\n", (int)g_memcounter);
+	//printf(str);
 
 	return res;
 }

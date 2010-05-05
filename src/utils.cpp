@@ -25,7 +25,7 @@ void * CATNET_MALLOC(size_t nsize) {
 		// read the 0xa character
 		nch = getchar();
 	}
-	//return malloc(nsize);
+	return malloc(nsize);
 	g_memcounter += nsize;
 	void *pMem = malloc(sizeof(int) + nsize);
 	if(!pMem) {
@@ -44,8 +44,8 @@ void * CATNET_MALLOC(size_t nsize) {
 void CATNET_FREE(void *pMem) {
 	if(!pMem)	
 		return;
-	//free(pMem);
-	//return;
+	free(pMem);
+	return;
 	pMem = (void*)((int*)pMem-1);
 	size_t nsize = *((int*)pMem);
 	g_memcounter -= nsize;	

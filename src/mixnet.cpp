@@ -730,11 +730,6 @@ double CMixNet::findNodeLoglik(int nnode, double *psamples, int nsamples) {
 	
 	if(!psamples || nsamples < 1)
 		return -FLT_MAX;
-	
-	//if(findNodeMarginalProb(nnode, psamples, nsamples) != ERR_CATNET_OK)
-	//	return -FLT_MAX;
-	//c_setSize = pc_size();
-	/// now m_qc contains P(x_i| y_j^s, j<i), j = 1,...,numsamples
 
 	pProbList = (PROB_LIST<double>*)getNodeProb(nnode);
 	pnodeprob = pProbList->pProbs;
@@ -747,7 +742,7 @@ double CMixNet::findNodeLoglik(int nnode, double *psamples, int nsamples) {
 		cC_setSize = pcC_size();
 	}
 
-	fconst1 = log(1 / sqrt(PI2*m_sigmas[nnode])); //-0.5 * log(PI2*m_sigmas[nnode]);
+	fconst1 = log(1 / sqrt(PI2*m_sigmas[nnode]));
 	fconst2 = -0.5 / m_sigmas[nnode];
 
 	fLogLik = 0;
