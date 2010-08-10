@@ -1,6 +1,6 @@
-\name{crab}
+\name{crabs}
 \docType{data}
-\alias{crab}
+\alias{crabs}
 
 \title{Horseshoe Crab Data}
 

@@ -36,7 +36,8 @@ setMethod("mgPredict", "mgNetwork", function(object, data) {
      stop("No samples\n")
 
    newdata <- .Call("mgPredictC",
-                    object, data,
+                    object, as.character(object@model),
+                    data,
                     PACKAGE="mugnet")
    if(is.null(newdata))
       return(NULL)

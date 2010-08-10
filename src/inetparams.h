@@ -1,4 +1,23 @@
 /*
+ *  mugnet : Mixed Categorical Bayesian networks
+ *  Copyright (C) 2009--2010  Nikolay Balov
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, a copy is available at
+ *  http://www.gnu.org/licenses/gpl-2.0.html
+ */
+
+/*
  * netparams.h
  *
  *  Created on: Nov 16, 2009
@@ -7,6 +26,12 @@
 
 #ifndef I_NETPARAMS_H_
 #define I_NETPARAMS_H_
+
+#define ERR_CATNET_OK		0
+#define ERR_CATNET_PARAM	-1
+#define ERR_CATNET_MEM		-2
+#define ERR_CATNET_INIT		-3
+#define ERR_CATNET_PROC		-4
 
 #include "problist.h" 
 
@@ -34,17 +59,17 @@ public:
 	virtual t_prob loglik() = 0;
 	virtual t_prob setNodeLoglik(int nnode, t_prob lik) = 0;
 	virtual t_prob getNodeLoglik(int nnode) = 0;
-	virtual t_prob findNodeLoglik(int nnode, double *psamples, int nsamples) = 0;
+	virtual t_prob findNodeLoglik(int nnode, t_prob *psamples, int nsamples) = 0;
 	virtual void setNodesOrder(const int *porder) = 0;
 	virtual int * getOrder() = 0;
 	virtual int* catnetSample(int nsamples) = 0;
 
-	virtual void setNodeBetas(int nnode, double *pbetas) = 0;
-	virtual void setNodeSigma(int nnode, double fSigma) = 0;
-	virtual const double **setBetas(double **pbetas, int nbetas) = 0;
-	virtual const double *setSigmas(double *psigmas, int nsigmas) = 0;
-	virtual const double **betas() = 0;
-	virtual const double *sigmas() = 0;
+	virtual void setNodeBetas(int nnode, t_prob *pbetas) = 0;
+	virtual void setNodeSigma(int nnode, t_prob fSigma) = 0;
+	virtual const t_prob **setBetas(t_prob **pbetas, int nbetas) = 0;
+	virtual const t_prob *setSigmas(t_prob *psigmas, int nsigmas) = 0;
+	virtual const t_prob **betas() = 0;
+	virtual const t_prob *sigmas() = 0;
 
 	virtual int pc_size() = 0;
 	virtual int pcC_size() = 0;
@@ -56,6 +81,10 @@ public:
 
 	virtual int findNodeMarginalProb(int nnode, t_prob *psamples, int nsamples) = 0;
 	virtual int findNodeJointProb(int nnode, int *pnodes, int numnodes, t_prob *psamples, int nsamples) = 0;
+	virtual double estimateParameters(int nnode, t_prob *psamples, int nsamples, t_prob *pBetas, t_prob *pSigma) = 0;
+
+	virtual int sample(t_prob *psamples, int nsamples) = 0;
+	virtual int predict(t_prob *psamples, int nsamples) = 0;
 };
 
 

@@ -6,8 +6,9 @@ mgSearchOrder <- function(data, perturbations = NULL,
                           maxParentSet = 2, maxComplexity = 0,
                           nodeOrder = NULL,
                           parentsPool = NULL, fixedParentsPool = NULL,
-                          emIterations = 5, stopDelta = 0, 
-                          selectMode="BIC", echo = FALSE) {
+                          emIter = 5, stopDelta = 0, emStartIter = 2,
+                          selectMode="BIC", model="Gaus",
+                          echo = FALSE) {
 
   t1 <- proc.time()
 
@@ -25,6 +26,11 @@ mgSearchOrder <- function(data, perturbations = NULL,
   numnodes <- dim(data)[1]
   numsamples <- dim(data)[2]
 
+  for(i in 1:numnodes) {
+    if(!is.numeric(data[,i]))
+      stop("Data should be numeric")
+  }
+  
   if(!is.null(nodeCategories)) {
     if(length(nodeCategories) != numnodes)
       stop("Specify the number of categories for all nodes")
@@ -50,11 +56,18 @@ mgSearchOrder <- function(data, perturbations = NULL,
 
   if(maxComplexity <= 0) {
     maxComplexity <- as.integer(numnodes * (exp(log(maxCategories)*maxParentSet) * (maxCategories-1) + (maxCategories+1)))
-    cat("Set maxComplexity to ", maxComplexity, "\n")
+    if(echo)
+      cat("Set maxComplexity to ", maxComplexity, "\n")
   }
 
   if(is.null(nodeOrder))
     nodeOrder <- 1:numnodes
+  else {
+    if(length(nodeOrder) != numnodes) {
+      nodeOrder <- 1:numnodes
+      warning("nodeOrder set to ", nodeOrder)
+    }
+  }
   
   if(numnodes < 1 || numsamples < 1)
     stop("No valid data is specified.")
@@ -73,8 +86,10 @@ mgSearchOrder <- function(data, perturbations = NULL,
                     nodeCategories, maxParentSet,
                     maxComplexity, nodeOrder,
                     parentsPool, fixedParentsPool,
-                    emIterations, stopDelta,
-                    as.integer(selectMode), echo, 
+                    emIter, stopDelta, emStartIter, 
+                    as.integer(selectMode),
+                    as.character(model), 
+                    echo, 
                     PACKAGE="mugnet")
 
   nodenames <- seq(1,numnodes)
@@ -87,11 +102,25 @@ mgSearchOrder <- function(data, perturbations = NULL,
 
   eval <- new("catNetworkEvaluate", numnodes, numsamples, 1)
 
-  eval@nets <- bestnets
   for(i in 1:length(bestnets)) {
     eval@complexity[i] <- bestnets[[i]]@complexity
     eval@loglik[i] <- bestnets[[i]]@likelihood
+
+    ## reorder eval@nets[[nn]]'s nodes to match data's nodes
+    enetnodes <- bestnets[[i]]@nodes
+    if(length(nodenames) == numnodes) {
+      ord <- sapply(nodenames, function(c) {
+        id <- which(enetnodes==c)
+        if(length(id)>0)
+          return(id[1])
+	stop("nodes do not match")
+        })
+      if(sum(ord != 1:numnodes) > 0) {
+        bestnets[[i]] <- mgReorderNodes(bestnets[[i]], ord)
+      }
+    }
   }
+  eval@nets <- bestnets
 
   t2 <- proc.time()
   eval@time <- as.numeric(t2[3] - t1[3])

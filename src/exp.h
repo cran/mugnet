@@ -18,14 +18,14 @@
  */
 
 /*
- * mixnet.h
+ * exp.h
  *
- *  Created on: Nov 16, 2009
+ *  Created on: May 6, 2010
  *      Author: Nikolay Balov
  */
 
-#ifndef MIXNET_CLASS_H
-#define MIXNET_CLASS_H
+#ifndef EXPNET_CLASS_H
+#define EXPNET_CLASS_H
 
 #include "catnet.h"
 #include "inetparams.h"
@@ -34,13 +34,13 @@
 
 extern int g_netcounter;
 
-class CMixNet : public CATNET<char, MAX_NODE_NAME, double>, public I_NETPARAMS<double> {
+class CExpNet : public CATNET<char, MAX_NODE_NAME, double>, public I_NETPARAMS<double> {
 private:
 	int m_ref;
 	int *m_pCatnetSamples, m_nCatnetSamples;
 
 protected:
-	double **m_betas, *m_sigmas;
+	double **m_lambdas, **m_loglambdas;
 
 	int m_curNode;
 	int m_parCatSetSize;
@@ -53,13 +53,13 @@ protected:
 	void _reset();
 
 public:
-	CMixNet() {
+	CExpNet() {
 		_reset();
 		m_ref = 0;
 		addRef();
 	}
 	
-	CMixNet(int nnodes, int maxpars, int maxcats = 2, const char **nodes = 0,
+	CExpNet(int nnodes, int maxpars, int maxcats = 2, const char **nodes = 0,
 			const int * pnumpars = 0, const int **ppars = 0, const int *pcats = 0) {
 		_reset();
 		init(nnodes, maxpars, maxcats, nodes, pnumpars, ppars, pcats);
@@ -67,20 +67,18 @@ public:
 		addRef();
 	}
 
-	~CMixNet() {
+	~CExpNet() {
 		_release();
 	}
 
 	int addRef() {
 		m_ref++;
 		g_netcounter++;
-		//printf("+netref %d\n", g_netcounter);
 		return m_ref;
 	}
 
 	int releaseRef() {
 		g_netcounter--;
-		//printf("-netref %d\n", g_netcounter);
 		m_ref--;
 		if(m_ref <= 0) {
 			delete this;
@@ -89,17 +87,17 @@ public:
 		return m_ref;
 	}
 
-	CMixNet& operator =(const CMixNet &cnet);
+	CExpNet& operator =(const CExpNet &cnet);
 
 	/* I_NETPARAMS methods */
 
 	I_NETPARAMS<double> *assign(const I_NETPARAMS<double> *pinet) {
-		*this = *((CMixNet*)pinet);
+		*this = *((CExpNet*)pinet);
 		return (I_NETPARAMS<double>*)this;
 	}
 
 	I_NETPARAMS<double> *clone() {
-		CMixNet *pinet = new CMixNet; 
+		CExpNet *pinet = new CExpNet; 
 		*pinet = *this;
 		return (I_NETPARAMS<double>*)pinet;
 	}
@@ -147,7 +145,7 @@ public:
 		const int* pNumCats = numCategories();
 		int complx = 0;
 		for(n = 0; n < numnodes; n++)
-			complx += (1 + pNumCats[n]);
+			complx += pNumCats[n];
 		return(complx + CATNET<char, MAX_NODE_NAME, double>::complexity());
 	}
 
@@ -201,4 +199,4 @@ public:
 	int predict(double *psamples, int nsamples);
 };
 
-#endif /* MIXNET_CLASS_H */
+#endif /* EXPNET_CLASS_H */

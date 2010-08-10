@@ -3,12 +3,18 @@
 
 setClass("mgNetwork",  
          representation(
+                        model="character",
                         betas="list",
                         sigmas="vector"
 	 ), 
 	 contains="catNetwork", 
          validity = function(object) valid.mgNetwork(object),
          package = "mugnet"
+	)
+
+setGeneric("mgModel", 
+          function(object)
+           standardGeneric("mgModel")
 	)
 
 setGeneric("mgBeta", 
@@ -21,9 +27,19 @@ setGeneric("mgSigma",
            standardGeneric("mgSigma")
 	)
 
-setGeneric("mgFromCatnet", 
+setGeneric("mgGaus", 
           function(object, cnet, betas, sigmas)
-           standardGeneric("mgFromCatnet")
+           standardGeneric("mgGaus")
+	)
+
+setGeneric("mgPois", 
+          function(object, cnet, lambdas)
+           standardGeneric("mgPois")
+	)
+
+setGeneric("mgExp", 
+          function(object, cnet, lambdas)
+           standardGeneric("mgExp")
 	)
 
 setGeneric("mgSamples", 

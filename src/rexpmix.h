@@ -18,30 +18,29 @@
  */
 
 /*
- * rsearch.h
+ * rexpmix.h
  *
- *  Created on:Nov 16, 2009
+ *  Created on: May 11, 2010
  *      Author: Nikolay Balov
  */
 
-#ifndef RMIX_SEARCH_H
-#define RMIX_SEARCH_H
+#ifndef REXPMIX_H_
+#define REXPMIX_H_
 
-#include "emsearch.h"
+#include "exp.h"
 
-#include <R.h>
-#include <Rmath.h>
-#include <Rdefines.h>
-
-class RMixSearch : public EMSEARCH<double> {
+class RExpMix : public CExpNet {
 public:
-	RMixSearch();
-	SEXP estimateNetworks(SEXP rSamples, SEXP rPerturbations,
-                       SEXP rNodeCategories, SEXP rMaxParents, SEXP rMaxComplexity, 
-		       SEXP rOrder,
-                       SEXP rParentsPool, SEXP rFixedParentsPool, 
-		       SEXP rEmIterations, SEXP rStopDelta, SEXP rEmStartIterations, 
-		       SEXP rNetSelection, SEXP rModel, SEXP rEcho);
+	RExpMix(SEXP cnet);
+
+	SEXP genRcatnet(const char * objectName);
+	SEXP genRmixnet(const char * objectName);
+	SEXP genProbList(int node, int paridx, int *pcats);
+
+	RExpMix(int nnodes, int maxpars, int maxcats = 2, const char **nodes = 0,
+			const int * pnumpars = 0, const int **ppars = 0, const int *pcats = 0) : 
+		CExpNet(nnodes, maxpars, maxcats, nodes, pnumpars, ppars, pcats) {
+	}
 };
 
-#endif /* RMIX_SEARCH_H */
+#endif /* REXPMIX_H_ */

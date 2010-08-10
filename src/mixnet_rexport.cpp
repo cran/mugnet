@@ -1,4 +1,23 @@
 /*
+ *  mugnet : Mixed Categorical Bayesian networks
+ *  Copyright (C) 2009--2010  Nikolay Balov
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, a copy is available at
+ *  http://www.gnu.org/licenses/gpl-2.0.html
+ */
+
+/*
  * mixnet_rexport.cpp
  *
  *  Created on: Nov 16, 2009
@@ -7,6 +26,8 @@
 
 #include "utils.h"
 #include "rmixnet.h"
+#include "rpoissonmix.h"
+#include "rexpmix.h"
 #include "rsearch.h"
 
 extern "C" {
@@ -17,8 +38,8 @@ SEXP searchOrder(
 			SEXP rSamples, SEXP rPerturbations,
 			SEXP rNodeCategories, SEXP rMaxParents, SEXP rMaxComplexity,
 			SEXP rOrder, SEXP rParentsPool, SEXP rFixedParentsPool,
-			SEXP rEmIterations, SEXP rStopDelta, 
-			SEXP rNetSelection, SEXP rEcho) {
+			SEXP rEmIterations, SEXP rStopDelta, SEXP rEmStartIterations, 
+			SEXP rNetSelection, SEXP rModel, SEXP rEcho) {
 
 	if(!isMatrix(rSamples))
 		error("Samples should be a matrix");
@@ -50,18 +71,20 @@ SEXP searchOrder(
 	SEXP res = pengine -> estimateNetworks(
 		rSamples, rPerturbations, 
 		rNodeCategories, rMaxParents, rMaxComplexity, rOrder,
-		rParentsPool, rFixedParentsPool, rEmIterations, rStopDelta, rNetSelection, rEcho);
+		rParentsPool, rFixedParentsPool, 
+		rEmIterations, rStopDelta, rEmStartIterations, 
+		rNetSelection, rModel, rEcho);
 	
 	delete pengine;
 
-	//char str[128];
-	//sprintf(str, "Mem Balance  %d\n", (int)g_memcounter);
-	//printf(str);
+	char str[128];
+	sprintf(str, "Mem Balance  %d\n", (int)g_memcounter);
+	printf(str);
 
 	return res;
 }
 
-SEXP sample(SEXP cnet, SEXP rNumSamples) {
+SEXP sample(SEXP cnet, SEXP rModel, SEXP rNumSamples) {
 
 	int res, numnodes, numsamples;
 	double *pSamples, *pRsamples;
@@ -75,19 +98,36 @@ SEXP sample(SEXP cnet, SEXP rNumSamples) {
 
 	rsamples = R_NilValue;
 	
+	I_NETPARAMS<double>* rnet = NULL;
+
 	PROTECT(cnet);
-	RMixNet *rnet = new RMixNet(cnet);
-	UNPROTECT(1);
+	PROTECT(rModel = AS_CHARACTER(rModel));
+	if(!strncmp(CHARACTER_VALUE(rModel), "Gaus", 4)) {
+		rnet = new RMixNet(cnet);
+	}
+	else if(!strncmp(CHARACTER_VALUE(rModel), "Pois", 4)) {
+		rnet = new RPoissonMix(cnet);
+	}
+	else if(!strncmp(CHARACTER_VALUE(rModel), "Exp", 3)) {
+		rnet = new RExpMix(cnet);
+	}
+	else {
+		UNPROTECT(2);
+		error("Wrong model");
+	}
+	UNPROTECT(2);
+
 	if(!rnet) {
 		return R_NilValue;
 	}
+
 	numnodes = rnet->numNodes();
 	
 	pSamples = (double*)CATNET_MALLOC(numnodes*numsamples*sizeof(double));
 
 	res = rnet->sample(pSamples, numsamples);
 
-	delete rnet;
+	rnet->releaseRef();
 
 	if(res != ERR_CATNET_OK) {
 		if(pSamples)
@@ -106,7 +146,7 @@ SEXP sample(SEXP cnet, SEXP rNumSamples) {
 	return rsamples;
 }
 
-SEXP predict(SEXP cnet, SEXP rSamples) {
+SEXP predict(SEXP cnet, SEXP rModel, SEXP rSamples) {
 
 	int numnodes, numsamples;
 	double *pRsamples, *pSamples;
@@ -117,6 +157,29 @@ SEXP predict(SEXP cnet, SEXP rSamples) {
 	if(!isMatrix(rSamples))
 		error("rSamples is not a matrix");
 	
+	I_NETPARAMS<double>* rnet = NULL;
+
+	PROTECT(cnet);
+	PROTECT(rModel = AS_CHARACTER(rModel));
+	if(!strncmp(CHARACTER_VALUE(rModel), "Gaus", 4)) {
+		rnet = new RMixNet(cnet);
+	}
+	else if(!strncmp(CHARACTER_VALUE(rModel), "Pois", 4)) {
+		rnet = new RPoissonMix(cnet);
+	}
+	else if(!strncmp(CHARACTER_VALUE(rModel), "Exp", 3)) {
+		rnet = new RExpMix(cnet);
+	}
+	else {
+		UNPROTECT(2);
+		error("Wrong model");
+	}
+	UNPROTECT(2);
+
+	if(!rnet) {
+		return R_NilValue;
+	}
+
 	PROTECT(rSamples = AS_NUMERIC(rSamples));
 	pRsamples = NUMERIC_POINTER(rSamples);
 	dim = GET_DIM(rSamples);
@@ -126,19 +189,9 @@ SEXP predict(SEXP cnet, SEXP rSamples) {
 	memcpy(pSamples, pRsamples, numnodes*numsamples*sizeof(double));
 	UNPROTECT(1);
 
-	PROTECT(cnet);
-	RMixNet *rnet = new RMixNet(cnet);
-	UNPROTECT(1);
-	
-	if(!rnet) {
-		if(pSamples)
-			CATNET_FREE(pSamples);
-		return R_NilValue;
-	}
-
 	rnet->predict(pSamples, numsamples);
 
-	delete rnet;
+	rnet->releaseRef();
 
 	// output the new matrix
 	PROTECT(rsamples = NEW_NUMERIC(numnodes * numsamples));
@@ -152,7 +205,7 @@ SEXP predict(SEXP cnet, SEXP rSamples) {
 	return rsamples;
 }
 
-SEXP nodeLoglik(SEXP cnet, SEXP rNodes, SEXP rSamples, SEXP rPerturbations) {
+SEXP nodeLoglik(SEXP cnet, SEXP rModel, SEXP rNodes, SEXP rSamples, SEXP rPerturbations) {
 
 	int *pPerturbations, *pNodes;
 	double *pSamples;
@@ -172,9 +225,24 @@ SEXP nodeLoglik(SEXP cnet, SEXP rNodes, SEXP rSamples, SEXP rPerturbations) {
 	// We don's check that sample nodes actually correspond to the cnet's nodes
 	// Missmatch of categories possible
 
+	I_NETPARAMS<double>* rnet = NULL;
+
 	PROTECT(cnet);
-	RMixNet *rnet = new RMixNet(cnet);
-	UNPROTECT(1);
+	PROTECT(rModel = AS_CHARACTER(rModel));
+	if(!strncmp(CHARACTER_VALUE(rModel), "Gaus", 4)) {
+		rnet = new RMixNet(cnet);
+	}
+	else if(!strncmp(CHARACTER_VALUE(rModel), "Pois", 4)) {
+		rnet = new RPoissonMix(cnet);
+	}
+	else if(!strncmp(CHARACTER_VALUE(rModel), "Exp", 3)) {
+		rnet = new RExpMix(cnet);
+	}
+	UNPROTECT(2);
+
+	if(!rnet) {
+		return R_NilValue;
+	}
 
 	PROTECT(rSamples = AS_NUMERIC(rSamples));
 	pSamples = NUMERIC_POINTER(rSamples);
@@ -206,12 +274,26 @@ SEXP nodeLoglik(SEXP cnet, SEXP rNodes, SEXP rSamples, SEXP rPerturbations) {
 		UNPROTECT(1);
 	}
 
-	for(nnode = 0; nnode < nNodes; nnode++)
+	// work with the sample distribution of pCurNet if necessary
+	if(rnet->maxParentSet() > 4 || rnet->maxCategories()*rnet->maxParentSet() > 9 || 
+		rnet->numNodes()*rnet->maxCategories()*rnet->maxParentSet() > 120) {
+		j = (int)exp(log((double)(rnet->maxCategories()))*(1+rnet->maxParentSet())) * 100;
+		//if(becho)
+		//	printf("simulate probability with sample of size %d\n", j);
+		rnet->catnetSample(j);
+	}
+
+	for(nnode = 0; nnode < nNodes; nnode++) {
 		pvec[nnode] = rnet->findNodeLoglik(pNodes[nnode], pSamples, numsamples);
+	}
 
 	UNPROTECT(3);
 
-	delete rnet;
+	rnet->releaseRef();
+
+	//char str[128];
+	//sprintf(str, "Mem Balance  %d\n", (int)g_memcounter);
+	//printf(str);
 
 	return rvec;
 }

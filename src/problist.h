@@ -1,4 +1,23 @@
 /*
+ *  mugnet : Mixed Categorical Bayesian networks
+ *  Copyright (C) 2009--2010  Nikolay Balov
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, a copy is available at
+ *  http://www.gnu.org/licenses/gpl-2.0.html
+ */
+
+/*
  * problist.h
  *
  *  Created on: Nov 16, 2009
@@ -77,14 +96,9 @@ struct PROB_LIST {
 			pProbs = (t_prob*) CATNET_MALLOC(nProbSize * sizeof(t_prob));
 			memset(pProbs, 0, nProbSize * sizeof(t_prob));
 			if (plist.pProbs) {
-				// doesn't work
-				//memcmp(pProbs, plist.pProbs, nProbSize * sizeof(t_prob));
-				//printf("pProbs = ");
 				for(int i = 0; i < nProbSize; i++) {
 					pProbs[i] = plist.pProbs[i];
-				//printf("%f ", pProbs[i]);
 				}
-				//printf("\n");
 			}
 		}
 		loglik = plist.loglik;
@@ -103,8 +117,6 @@ struct PROB_LIST {
 		pProbs = 0;
 		nProbSize = 0;
 		loglik = 0;
-		//cout << "ncats = " << ncats << ", nmaxcats = " << nmaxcats << ", npars = " << npars << ", 
-		//probsize = " << probsize << "\n";
 		if (numPars > 0) {
 			numParCats = (int*) CATNET_MALLOC(numPars * sizeof(int));
 			if (parcats)
@@ -115,7 +127,6 @@ struct PROB_LIST {
 
 			pBlockSize = (int*) CATNET_MALLOC(numPars * sizeof(int));
 			pBlockSize[numPars - 1] = ncats;
-			//cout << "pBlockSize[numPars-1] = " << pBlockSize[numPars-1] << "\n";
 			for (i = numPars - 1; i > 0; i--) {
 				if (parcats[i] < 1 || parcats[i] > nmaxcats) {
 					CATNET_FREE(pBlockSize);
@@ -124,18 +135,15 @@ struct PROB_LIST {
 					return;
 				}
 				pBlockSize[i - 1] = parcats[i] * pBlockSize[i];
-				//cout << i << " pBlockSize[i-1] = " << pBlockSize[i-1] << "\n";
 			}
 			nProbSize = pBlockSize[0] * numParCats[0];
 		} else
 			nProbSize = ncats;
 		
-		//cout << "nProbSize = " << nProbSize << "\n";
 		pProbs = (t_prob*) CATNET_MALLOC(nProbSize * sizeof(t_prob));
 		memset(pProbs, 0, nProbSize * sizeof(t_prob));
 		if (pProbs && pprobs) {
 			if (probsize != nProbSize) {
-				//cout << "probsize != nProbSize\n";
 				return;
 			}
 			memcpy(pProbs, pprobs, nProbSize * sizeof(t_prob));
@@ -148,17 +156,10 @@ struct PROB_LIST {
 				fsum += pProbs[i];
 			}
 			pProbs[numCats-1] = 1 - fsum;
-			//printf("PROB: ");
-			//for(i = 0; i < numCats; i++) 
-			//	printf("%f, ", pProbs[i]);
-			//printf("\n");
-			
 		}
 	}
 
 	~PROB_LIST() {
-//if(ggg > 0) ggg--;
-//printf("~PROB_LIST:: %p\t\t%d\n", this, ggg);
 		reset();
 	}
 
@@ -192,11 +193,6 @@ struct PROB_LIST {
 		t_prob pp;
 		loglik = 0;
 		k = 0;
-//cout << "nProbSize = " << nProbSize << "\n";
-//cout << "npars = " << numPars << ", probsize = " << nProbSize << ",loglik: ";
-//for(i = 0; i < nProbSize; i++)
-//	cout << pProbs[i] << ", ";
-//cout << "\n";
 		while (k < nProbSize) {
 			pp = 0;
 			for (i = 0; i < numCats; i++)
@@ -211,7 +207,6 @@ struct PROB_LIST {
 			}
 			else {
 				pp = 1 / pp;
-//cout << pp << "\n";
 				for (i = 0; i < numCats; i++) {
 					if(pProbs[k + i] > 0) {
 						loglik += pProbs[k + i] * log(pProbs[k + i] * pp);
@@ -220,7 +215,6 @@ struct PROB_LIST {
 			}
 			k += numCats;
 		}
-//cout << "PROB_LIST::loglik = " << loglik << "\n";
 		return loglik;  
 	}
 
@@ -230,7 +224,7 @@ struct PROB_LIST {
 		if (parid >= numPars || pcats == 0)
 			return prob;
 		int parcat = pcats[parid];
-		if (parcat < 0 && parcat >= numParCats[parid])
+		if (parcat < 0 || parcat >= numParCats[parid])
 			return 0;
 		if (parid == numPars - 1)
 			return prob + parcat * pBlockSize[parid];

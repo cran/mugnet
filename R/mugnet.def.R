@@ -11,23 +11,30 @@ setMethod("initialize", "mgNetwork",
           })
 
 setMethod("initialize", "mgNetwork", 
-          function(.Object, arg1, arg2, arg3) {
+          function(.Object, arg1, arg2, arg3, arg4) {
 
             .Object@objectName <- "mgNetwork"
             
-            if(nargs() >= 2 && is(arg1, "catNetwork"))
-              return(mgFromCatnet(.Object, arg1, arg2, arg3))
+            if(nargs() >= 4 && is(arg1, "catNetwork") && (arg2=="Gaus" || arg2=="Gauss" || arg2=="Gaussian"))
+              return(mgGaus(.Object, arg1, arg3, arg4))
 
+            if(nargs() >= 3 && is(arg1, "catNetwork") && (arg2=="Pois" || arg2=="Poisson"))
+              return(mgPois(.Object, arg1, arg3))
+
+            if(nargs() >= 3 && is(arg1, "catNetwork") && (arg2=="Exp" || arg2=="Exponential"))
+              return(mgExp(.Object, arg1, arg3))
+            
             stop("Not appropriate initialization method is found.\n")
           })
 
 
 setMethod("show", "mgNetwork",
           function(object) {
-            if(is(object, "mgNetwork"))
-              cat("A mgNetwork object with ", object@numnodes, " nodes, ",
+            if(is(object, "mgNetwork")) {
+              cat("A ", object@model, " mgNetwork with ", object@numnodes, " nodes, ",
                   object@maxParents, " parents and ", object@maxCategories, " categories.\n Likelihood = ", object@likelihood,
-                  ", Complexity = ", object@complexity, ".\n") 
+                  ", Complexity = ", object@complexity, ".\n")
+            }
             })
 
 setMethod("mgSigma", "mgNetwork", 
@@ -51,8 +58,9 @@ valid.mgNetwork <- function(obj, quietly=FALSE) {
   return(res)   
 }  
 
-setMethod("mgFromCatnet", "mgNetwork", 
-function(object, cnet, betas, sigmas) {  
+setMethod("mgGaus", "mgNetwork", 
+function(object, cnet, betas, sigmas) {
+  object@model <- "Gaus"
   object@numnodes <- cnet@numnodes
   object@nodes <- cnet@nodes
   object@meta <- cnet@meta
@@ -83,14 +91,85 @@ function(object, cnet, betas, sigmas) {
   
   object@betas <- betas
   object@sigmas <- sigmas
+
+  pc <- sapply(1:object@numnodes, function(x) nodeComplexity(object, x)) 
+  object@complexity <- as.integer(sum(pc))
+  object@likelihood <- 0
+  
   return(object)
 }
 )
 
-mgNew <- function(nodes, cats, parents, probs = NULL, betas = NULL, sigmas = NULL) {
+setMethod("mgPois", "mgNetwork", 
+function(object, cnet, lambdas) {
+  object@model <- "Pois"
+  object@numnodes <- cnet@numnodes
+  object@nodes <- cnet@nodes
+  object@meta <- cnet@meta
+  object@maxParents <- cnet@maxParents
+  object@parents <- cnet@parents
+  object@categories <- cnet@categories
+  object@maxCategories <- cnet@maxCategories
+  object@probabilities <- cnet@probabilities
+
+  if(is.null(lambdas)) {
+    betas <- vector("list", object@numnodes)
+    for(i in 1:object@numnodes) {
+      ncats <- length(object@categories[[i]])
+      if(ncats < 2)
+        stop("A node with less than two categories: ", i)
+      lambdas[[i]] <- seq(1, ncats)
+    }
+  }
+  
+  object@betas <- lambdas
+  object@sigmas <- rep(0, object@numnodes)
+
+  pc <- sapply(1:object@numnodes, function(x) nodeComplexity(object, x)) 
+  object@complexity <- as.integer(sum(pc))
+  object@likelihood <- 0
+  
+  return(object)
+}
+)
+
+setMethod("mgExp", "mgNetwork", 
+function(object, cnet, lambdas) {
+  object@model <- "Exp"
+  object@numnodes <- cnet@numnodes
+  object@nodes <- cnet@nodes
+  object@meta <- cnet@meta
+  object@maxParents <- cnet@maxParents
+  object@parents <- cnet@parents
+  object@categories <- cnet@categories
+  object@maxCategories <- cnet@maxCategories
+  object@probabilities <- cnet@probabilities
+
+  if(is.null(lambdas)) {
+    betas <- vector("list", object@numnodes)
+    for(i in 1:object@numnodes) {
+      ncats <- length(object@categories[[i]])
+      if(ncats < 2)
+        stop("A node with less than two categories: ", i)
+      lambdas[[i]] <- seq(1, ncats)
+    }
+  }
+  
+  object@betas <- lambdas
+  object@sigmas <- rep(0, object@numnodes)
+
+  pc <- sapply(1:object@numnodes, function(x) nodeComplexity(object, x)) 
+  object@complexity <- as.integer(sum(pc))
+  object@likelihood <- 0
+  
+  return(object)
+}
+)
+
+mgNew <- function(nodes, cats, parents, probs = NULL, model="Gaus",  betas = NULL, sigmas = NULL) {
 
   cnet <- cnNew(nodes, cats, parents, probs)
-  object <- new("mgNetwork", cnet, betas, sigmas) 
+  object <- new("mgNetwork", cnet, model, betas, sigmas) 
   
   if(!valid.mgNetwork(object, TRUE)) 
     stop("Incompatible parameters") 
@@ -140,11 +219,19 @@ function(object, nodeIndices) {
 
  
 nodeComplexity <- function(object, nnode) { 
-  ll <- sapply(object@parents[[nnode]], function(i) length(object@categories[[i]])) 
-  if(length(ll)>0) 
-    return((1+length(object@betas[[nnode]])) + prod(ll)*(length(object@categories[[nnode]])-1)) 
-  else 
-    return((1+length(object@betas[[nnode]])) + length(object@categories[[nnode]])-1) 
+  ll <- sapply(object@parents[[nnode]], function(i) length(object@categories[[i]]))
+  if(object@model == "Gaus") {
+    if(length(ll)>0) 
+      return((1+length(object@betas[[nnode]])) + prod(ll)*(length(object@categories[[nnode]])-1)) 
+    else 
+      return(2*length(object@betas[[nnode]]))
+  }
+  if(object@model == "Pois" || object@model == "Exp") {
+    if(length(ll)>0) 
+      return(length(object@betas[[nnode]]) + prod(ll)*(length(object@categories[[nnode]])-1)) 
+    else 
+      return(2*length(object@betas[[nnode]])-1)
+  }
 } 
  
 setMethod("cnComplexity", signature("mgNetwork"), function(object, node) { 

@@ -26,6 +26,7 @@
 
 #include "utils.h"
 #include "rmixnet.h"
+#include "rpoissonmix.h"
 
 extern "C" {
 
@@ -36,7 +37,8 @@ SEXP prob_vector(SEXP rnodes, SEXP rparents, SEXP rcatlist, SEXP rproblist);
 
 } // extern "C"
 
-RMixNet::RMixNet(SEXP cnet) {
+
+RPoissonMix::RPoissonMix(SEXP cnet) {
 
 	double *pvec, *pbeta;
 	int nnode, i, nvec, *pn;
@@ -172,7 +174,7 @@ RMixNet::RMixNet(SEXP cnet) {
 	//printf("New RMixNet %d, %d, %d\n", m_numNodes, m_maxParents, m_maxCategories);
 }
 
-SEXP RMixNet::genRcatnet(const char * objectName = (const char*)"catNetwork") {
+SEXP RPoissonMix::genRcatnet(const char * objectName = (const char*)"catNetwork") {
 
 	char str[256];
 	int node, i, *pslotcats, *pn;
@@ -258,13 +260,10 @@ SEXP RMixNet::genRcatnet(const char * objectName = (const char*)"catNetwork") {
 	SET_SLOT(cnet, install("categories"), plist);
 	UNPROTECT(1);
 
-	pslotcats = 0;
-	if(m_maxParents > 0)
-		pslotcats = (int*)CATNET_MALLOC(m_maxParents*sizeof(int));
+	pslotcats = (int*)CATNET_MALLOC(m_maxParents*sizeof(int));
 	PROTECT(plist = allocVector(VECSXP, m_numNodes));
 	for(node = 0; node < m_numNodes; node++) {
-		if(m_maxParents > 0)
-			memset(pslotcats, 0, m_maxParents*sizeof(int));
+		memset(pslotcats, 0, m_maxParents*sizeof(int));
 		pnodeprobs = genProbList(node, 0, pslotcats);
 		SET_VECTOR_ELT(plist, node, pnodeprobs);
 		if(pnodeprobs != R_NilValue)
@@ -280,7 +279,7 @@ SEXP RMixNet::genRcatnet(const char * objectName = (const char*)"catNetwork") {
 	UNPROTECT(1);
 	
 	PROTECT(pint = NEW_NUMERIC(1));
-	NUMERIC_POINTER(pint)[0] = loglik();
+	NUMERIC_POINTER(pint)[0] = getLoglik();
 	SET_SLOT(cnet, install("likelihood"), pint);
 	UNPROTECT(1);
 
@@ -289,12 +288,12 @@ SEXP RMixNet::genRcatnet(const char * objectName = (const char*)"catNetwork") {
 	return cnet;
 }
 
-SEXP RMixNet::genProbList(int node, int paridx, int *pcats) {
+SEXP RPoissonMix::genProbList(int node, int paridx, int *pcats) {
 	int j, npar;
 	SEXP problist;
 	double *pslot, *pp;
 
-	if(m_pProbLists == 0 || m_pProbLists[node] == 0 || paridx < 0)
+	if(m_pProbLists == 0 || m_pProbLists[node] == 0 || pcats == 0 || paridx < 0)
 		return R_NilValue;
 
 	if(paridx >= m_numParents[node]) {
@@ -318,7 +317,7 @@ SEXP RMixNet::genProbList(int node, int paridx, int *pcats) {
 }
 
 
-SEXP RMixNet::genRmixnet(const char * objectName = (const char*)"mgNetwork") {
+SEXP RPoissonMix::genRmixnet(const char * objectName = (const char*)"mgNetwork") {
 
 	char str[256];
 	int node, i, *pslotcats, *pn;
@@ -336,7 +335,7 @@ SEXP RMixNet::genRmixnet(const char * objectName = (const char*)"mgNetwork") {
 	UNPROTECT(1);
 
 	PROTECT(plist = allocVector(STRSXP, 1));
-	SET_STRING_ELT(plist, 0, mkChar("Gaus"));
+	SET_STRING_ELT(plist, 0, mkChar("Pois"));
 	SET_SLOT(cnet, install("model"), plist);
 	UNPROTECT(1);
 
@@ -436,7 +435,7 @@ SEXP RMixNet::genRmixnet(const char * objectName = (const char*)"mgNetwork") {
 	UNPROTECT(1);
 	
 	PROTECT(pint = NEW_NUMERIC(1));
-	NUMERIC_POINTER(pint)[0] = getLoglik();
+	NUMERIC_POINTER(pint)[0] = loglik();
 	SET_SLOT(cnet, install("likelihood"), pint);
 	UNPROTECT(1);
 
@@ -449,7 +448,7 @@ SEXP RMixNet::genRmixnet(const char * objectName = (const char*)"mgNetwork") {
 		PROTECT(ppars = NEW_NUMERIC(m_numCategories[node]));
 		pf = NUMERIC_POINTER(ppars);
 		for(i = 0; i < m_numCategories[node]; i++)
-			pf[i] = m_betas[node][i];
+			pf[i] = m_lambdas[node][i];
 		SET_VECTOR_ELT(plist, node, ppars);
 		UNPROTECT(1);
 	}
@@ -458,7 +457,7 @@ SEXP RMixNet::genRmixnet(const char * objectName = (const char*)"mgNetwork") {
 
 	PROTECT(pnodeprobs = NEW_NUMERIC(m_numNodes));
 	pf = NUMERIC_POINTER(pnodeprobs);
-	memcpy(pf, m_sigmas, m_numNodes * sizeof(double));
+	memset(pf, 0, m_numNodes * sizeof(double));
 	SET_SLOT(cnet, install("sigmas"), pnodeprobs);
 	UNPROTECT(1);
 

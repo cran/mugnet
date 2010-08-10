@@ -1,4 +1,23 @@
 /*
+ *  mugnet : Mixed Categorical Bayesian networks
+ *  Copyright (C) 2009--2010  Nikolay Balov
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, a copy is available at
+ *  http://www.gnu.org/licenses/gpl-2.0.html
+ */
+
+/*
  * utils.c
  *
  *  Created on: Nov 16, 2009
@@ -10,22 +29,22 @@
 extern size_t g_memcounter;
 //extern FILE *g_hf;
 
-int g_ask_mem_alloc = 1;
+int g_ask_mem_alloc = (1<<30);
 
 void * CATNET_MALLOC(size_t nsize) { 
 	if(nsize <= 0)
 		return 0;
-	if(g_ask_mem_alloc && nsize > (1<<30)) {
+	if(nsize > g_ask_mem_alloc) {
 		printf("A large chunk of memory is about to be allocated, %u. Continue? (y/n) ", (unsigned)nsize);
 		char nch = getchar();
 		//printf("%c,%d, %c\n", nch, (int)nch, 'y');
 		if(nch != 'y')
 			error("Process stopped by user");
-		g_ask_mem_alloc = 0;
+		g_ask_mem_alloc = nsize;
 		// read the 0xa character
 		nch = getchar();
 	}
-	return malloc(nsize);
+	//return malloc(nsize);
 	g_memcounter += nsize;
 	void *pMem = malloc(sizeof(int) + nsize);
 	if(!pMem) {
@@ -44,8 +63,8 @@ void * CATNET_MALLOC(size_t nsize) {
 void CATNET_FREE(void *pMem) {
 	if(!pMem)	
 		return;
-	free(pMem);
-	return;
+	//free(pMem);
+	//return;
 	pMem = (void*)((int*)pMem-1);
 	size_t nsize = *((int*)pMem);
 	g_memcounter -= nsize;	
@@ -60,3 +79,4 @@ void CATNET_MEM_ERR() {
 	// generate R-errorx
 	error("Insufficient memory");
 }
+

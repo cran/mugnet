@@ -7,7 +7,7 @@ setMethod("mgSamples", "mgNetwork", function(object, numsamples = 1, output="fra
   if(numsamples < 1)	
     numsamples <- 1	
   data <- .Call("mgSampleC",
-                object, as.integer(numsamples),
+                object, as.character(object@model), as.integer(numsamples),
                 PACKAGE="mugnet")
   if(is.null(data))
     return(NULL)
@@ -55,7 +55,8 @@ setMethod("mgLoglik", c("mgNetwork"),
             numsamples <- dim(data)[2]
             
             vloglik <- .Call("mgNodeLoglikC", 
-                             object, 1:numnodes, data, NULL, 
+                             object, as.character(object@model),
+                             1:numnodes, data, NULL, 
                              PACKAGE="mugnet")
             if(length(vloglik)<1)
               return(-Inf)
@@ -106,7 +107,8 @@ setMethod("mgNodeLoglik", c("mgNetwork"),
             if(length(nodes) < 1)
               return(NULL)
             vloglik <- .Call("mgNodeLoglikC", 
-                             object, nodes, data, NULL, 
+                             object, as.character(object@model),
+                             nodes, data, NULL, 
                              PACKAGE="mugnet")
             return(vloglik)
           }

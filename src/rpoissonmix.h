@@ -18,30 +18,29 @@
  */
 
 /*
- * rsearch.h
+ * rpoissonmix.h
  *
- *  Created on:Nov 16, 2009
+ *  Created on: Sep 21, 2009
  *      Author: Nikolay Balov
  */
 
-#ifndef RMIX_SEARCH_H
-#define RMIX_SEARCH_H
+#ifndef RPOISSONMIX_H_
+#define RPOISSONMIX_H_
 
-#include "emsearch.h"
+#include "poisson.h"
 
-#include <R.h>
-#include <Rmath.h>
-#include <Rdefines.h>
-
-class RMixSearch : public EMSEARCH<double> {
+class RPoissonMix : public CPoissonNet {
 public:
-	RMixSearch();
-	SEXP estimateNetworks(SEXP rSamples, SEXP rPerturbations,
-                       SEXP rNodeCategories, SEXP rMaxParents, SEXP rMaxComplexity, 
-		       SEXP rOrder,
-                       SEXP rParentsPool, SEXP rFixedParentsPool, 
-		       SEXP rEmIterations, SEXP rStopDelta, SEXP rEmStartIterations, 
-		       SEXP rNetSelection, SEXP rModel, SEXP rEcho);
+	RPoissonMix(SEXP cnet);
+
+	SEXP genRcatnet(const char * objectName);
+	SEXP genRmixnet(const char * objectName);
+	SEXP genProbList(int node, int paridx, int *pcats);
+
+	RPoissonMix(int nnodes, int maxpars, int maxcats = 2, const char **nodes = 0,
+			const int * pnumpars = 0, const int **ppars = 0, const int *pcats = 0) : 
+		CPoissonNet(nnodes, maxpars, maxcats, nodes, pnumpars, ppars, pcats) {
+	}
 };
 
-#endif /* RMIX_SEARCH_H */
+#endif /* RPOISSONMIX_H_ */

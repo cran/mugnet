@@ -2,7 +2,7 @@ library(mugnet)
 
 data(crabs)
 
-eval <- mgSearchOrder(data=crabs, perturbations=NULL, maxCategories=4, nodeCategories=c(5, 3, 4, 4, 4), maxParentSet=2, maxComplexity=0, nodeOrder=c(1,2,3,5,4), emIterations = 10, selectMode="BIC", echo=TRUE)
+eval <- mgSearchOrder(data=crabs, perturbations=NULL, maxCategories=4, nodeCategories=c(5, 3, 4, 4, 4), maxParentSet=3, maxComplexity=0, nodeOrder=c(1,2,3,5,4), emIter = 10, selectMode="BIC", echo=TRUE)
 eval
 netlist <- eval@nets
 compl<-rep(0, length(netlist))

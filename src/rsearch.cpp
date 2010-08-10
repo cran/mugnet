@@ -1,4 +1,23 @@
 /*
+ *  mugnet : Mixed Categorical Bayesian networks
+ *  Copyright (C) 2009--2010  Nikolay Balov
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, a copy is available at
+ *  http://www.gnu.org/licenses/gpl-2.0.html
+ */
+
+/*
  * rsearch.cpp
  *
  *  Created on: Nov 16, 2009
@@ -6,9 +25,10 @@
  */
 
 #include "utils.h"
-#include "mixnet.h"
-#include "rmixnet.h"
 #include "rsearch.h"
+#include "rmixnet.h"
+#include "rpoissonmix.h"
+#include "rexpmix.h"
 
 RMixSearch::RMixSearch() {
 }
@@ -17,17 +37,17 @@ SEXP RMixSearch::estimateNetworks(SEXP rSamples, SEXP rPerturbations,
                        SEXP rNodeCategories, SEXP rMaxParents, SEXP rMaxComplexity, 
 		       SEXP rOrder,
                        SEXP rParentsPool, SEXP rFixedParentsPool, 
-		       SEXP rEmIterations, SEXP rStopDelta, 
-		       SEXP rNetSelection, SEXP rEcho) {
+		       SEXP rEmIterations, SEXP rStopDelta, SEXP rEmStartIterations, 
+		       SEXP rNetSelection, SEXP rModel, SEXP rEcho) {
 
 	int res, i, j, k, len, numnodes, numsamples, maxParentSet, 
-		maxComplexity, emIterations, nnode, 
+		maxComplexity, emIterations, emStartIterations, nnode, 
 		numnets, inet, netSelection, echo;
 	int maxCategories, *pNodeCategories;
  	int *pRperturbations, *pPerturbations, **parentsPool, **fixedParentsPool, *pRorder, *pPool;
-	double *pRsamples, *pSamples, **pBetas, *pSigmas, *pNodeSamples, range, stopDelta;
+	double *pRsamples, *pSamples, **pBetas, *pSigmas, *pNodeSamples, range, stopDelta, loglik;
+	char model[256];
 
-	RMixNet *pRnormnet;
 	SEXP dim, rparpool, cnetlist, cnetnode;
 
 	if(!isMatrix(rSamples))
@@ -49,6 +69,7 @@ SEXP RMixSearch::estimateNetworks(SEXP rSamples, SEXP rPerturbations,
 	PROTECT(rMaxComplexity = AS_INTEGER(rMaxComplexity));
 	PROTECT(rEmIterations = AS_INTEGER(rEmIterations));
 	PROTECT(rStopDelta = AS_NUMERIC(rStopDelta));
+	PROTECT(rEmStartIterations = AS_INTEGER(rEmStartIterations));
 	PROTECT(rNetSelection = AS_INTEGER(rNetSelection));
 	PROTECT(rEcho = AS_LOGICAL(rEcho));
 
@@ -56,15 +77,20 @@ SEXP RMixSearch::estimateNetworks(SEXP rSamples, SEXP rPerturbations,
 	maxComplexity = INTEGER_POINTER(rMaxComplexity)[0];
 
 	emIterations = INTEGER_POINTER(rEmIterations)[0];
+	if(emIterations < 2)
+		emIterations = 2;
 	stopDelta = NUMERIC_POINTER(rStopDelta)[0];
 	if(stopDelta < 0)
 		stopDelta = 0;
+	emStartIterations = INTEGER_POINTER(rEmStartIterations)[0];
+	if(emStartIterations < 2)
+		emStartIterations = 2;
 
 	netSelection = INTEGER_POINTER(rNetSelection)[0];
 
 	echo = LOGICAL(rEcho)[0];
 
-	UNPROTECT(6);
+	UNPROTECT(7);
 
 	PROTECT(rNodeCategories = AS_INTEGER(rNodeCategories));
 	if(length(rNodeCategories) != numnodes) {
@@ -84,12 +110,6 @@ SEXP RMixSearch::estimateNetworks(SEXP rSamples, SEXP rPerturbations,
 		if(maxCategories < pNodeCategories[i])
 			maxCategories = pNodeCategories[i];
  	}
-
-	// make sure maxComplexity is at least the minimum possible complexity
-	if(numnodes*((maxCategories-1)+(maxCategories+1)) > maxComplexity) {
-		maxComplexity = numnodes*((maxCategories-1)+(maxCategories+1));
-		warning("Set maxComplexity = %d\n", maxComplexity);
-	}
 
 	//printf("maxParentSet = %d, maxComplexity = %d, numnodes = %d, numsamples = %d\n", maxParentSet, maxComplexity, numnodes, numsamples);
 	//printf("%p, %p, %p, %p\n", (void*)rSamples, (void*)rPerturbations, (void*)rParentsPool, (void*)rFixedParentsPool);
@@ -132,8 +152,11 @@ SEXP RMixSearch::estimateNetworks(SEXP rSamples, SEXP rPerturbations,
 		
 		pBetas[i] = (double*)CATNET_MALLOC(pNodeCategories[i]*sizeof(double));
 		for(j = 0; j < pNodeCategories[i]; j++) {
+			/* uniform */
 			pBetas[i][j] = pNodeSamples[0] + range*(j+1)/(pNodeCategories[i]+1);
-			//pBetas[i][j] = pNodeSamples[(int)(numsamples*(j+1)/(pNodeCategories[i]+1))];
+			/* quantiles */
+			//k = (2*j+1)*numsamples / (2*pNodeCategories[i]);
+			//pBetas[i][j] = pNodeSamples[(int)k];
 			if(echo)
 				printf("%.4f  ", pBetas[i][j]);
 		}
@@ -230,10 +253,53 @@ SEXP RMixSearch::estimateNetworks(SEXP rSamples, SEXP rPerturbations,
 		UNPROTECT(1);
 	}
 
+	PROTECT(rModel = AS_CHARACTER(rModel));
+	if(echo)
+		printf("model = %s\n", CHARACTER_VALUE(rModel));
 	// make an egg
-	pRnormnet = new RMixNet(numnodes, maxParentSet, maxCategories, 
-			/*const t_node **nodes =*/ 0, /*const int * pnumpars =*/ 0,
-			/*const int **ppars =*/ 0, /*const int *pcats =*/ pNodeCategories);
+	I_NETPARAMS<double>* pRnormnet = NULL;
+	if(!strncmp(CHARACTER_VALUE(rModel), "Gaus", 4)) {
+		strcpy(model, "Gaus");
+		// make sure maxComplexity is at least the minimum possible complexity
+		if(numnodes*(2*maxCategories) > maxComplexity) {
+			maxComplexity = numnodes*(2*maxCategories);
+			warning("Set maxComplexity = %d\n", maxComplexity);
+		}
+
+		pRnormnet = (I_NETPARAMS<double>*)new RMixNet(numnodes, maxParentSet, maxCategories, 
+				/*const t_node **nodes =*/ 0, /*const int * pnumpars =*/ 0,
+				/*const int **ppars =*/ 0, /*const int *pcats =*/ pNodeCategories);
+	}
+	else if(!strncmp(CHARACTER_VALUE(rModel), "Pois", 4)) {
+		strcpy(model, "Pois");
+		// make sure maxComplexity is at least the minimum possible complexity
+		if(numnodes*(2*maxCategories-1) > maxComplexity) {
+			maxComplexity = numnodes*(2*maxCategories-1);
+			warning("Set maxComplexity = %d\n", maxComplexity);
+		}
+
+		pRnormnet = (I_NETPARAMS<double>*)new RPoissonMix(numnodes, maxParentSet, maxCategories, 
+				/*const t_node **nodes =*/ 0, /*const int * pnumpars =*/ 0,
+				/*const int **ppars =*/ 0, /*const int *pcats =*/ pNodeCategories);
+	}
+	else if(!strncmp(CHARACTER_VALUE(rModel), "Exp", 3)) {
+		strcpy(model, "Exp");
+		// make sure maxComplexity is at least the minimum possible complexity
+		if(numnodes*(2*maxCategories-1) > maxComplexity) {
+			maxComplexity = numnodes*(2*maxCategories-1);
+			warning("Set maxComplexity = %d\n", maxComplexity);
+		}
+
+		pRnormnet = (I_NETPARAMS<double>*)new RExpMix(numnodes, maxParentSet, maxCategories, 
+				/*const t_node **nodes =*/ 0, /*const int * pnumpars =*/ 0,
+				/*const int **ppars =*/ 0, /*const int *pcats =*/ pNodeCategories);
+	}
+	else {
+		UNPROTECT(1);
+		error("Wrong model");
+	}
+
+	UNPROTECT(1);
 	if(!pRnormnet)
 		CATNET_MEM_ERR();
 
@@ -254,11 +320,25 @@ SEXP RMixSearch::estimateNetworks(SEXP rSamples, SEXP rPerturbations,
 	pSigmas = 0; 
 
 	res = estimate((I_NETPARAMS<double>*) pRnormnet, numsamples, pSamples, pPerturbations, maxParentSet, 
-			maxComplexity, parentsPool, fixedParentsPool, emIterations, stopDelta, netSelection, echo);
+			maxComplexity, parentsPool, fixedParentsPool, 
+			emIterations, stopDelta, emStartIterations, netSelection, echo);
 
 	pRnormnet->releaseRef();
 	pRnormnet = 0;
 
+	// create a R-list of catNetworks
+	numnets = 0;
+	for(i = 0; i < m_nNets; i++) {
+		if(m_pCurNets[i]) {
+			m_pCurNets[i]->setNodesOrder(pRorder);
+			//loglik = 0;
+			//for(k = 0; k < numnodes; k++)
+			//	loglik += m_pCurNets[i]->findNodeLoglik(k, pSamples, numsamples);
+			//m_pCurNets[i]->setLoglik(loglik);
+			numnets++;
+		}
+	}
+	
 	if(pSamples)
 		CATNET_FREE(pSamples);
 	if(pPerturbations)
@@ -274,15 +354,6 @@ SEXP RMixSearch::estimateNetworks(SEXP rSamples, SEXP rPerturbations,
 			if(fixedParentsPool[i])
 				CATNET_FREE(fixedParentsPool[i]);
 		CATNET_FREE(fixedParentsPool);
-	}
-
-	// create a R-list of catNetworks
-	numnets = 0;
-	for(i = 0; i < m_nNets; i++) {
-		if(m_pCurNets[i]) {
-			m_pCurNets[i]->setNodesOrder(pRorder);
-			numnets++;
-		}
 	}
 
 	if(pRorder)
@@ -301,7 +372,12 @@ SEXP RMixSearch::estimateNetworks(SEXP rSamples, SEXP rPerturbations,
 	for(i = 0; i < m_nNets; i++) {
 		if(!m_pCurNets[i])
 			continue;
-		PROTECT(cnetnode = ((RMixNet*)m_pCurNets[i])->genRmixnet("mgNetwork"));
+		if(!strncmp(model, "Gaus", 4)) 
+			PROTECT(cnetnode = ((RMixNet*)m_pCurNets[i])->genRmixnet("mgNetwork"));
+		if(!strncmp(model, "Pois", 4)) 
+			PROTECT(cnetnode = ((RPoissonMix*)m_pCurNets[i])->genRmixnet("mgNetwork"));
+		if(!strncmp(model, "Exp", 3)) 
+			PROTECT(cnetnode = ((RExpMix*)m_pCurNets[i])->genRmixnet("mgNetwork"));
 		SET_VECTOR_ELT(cnetlist, inet, cnetnode);
 		UNPROTECT(1);
 		inet++;

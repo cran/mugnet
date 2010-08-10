@@ -1,4 +1,23 @@
 /*
+ *  mugnet : Mixed Categorical Bayesian networks
+ *  Copyright (C) 2009--2010  Nikolay Balov
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, a copy is available at
+ *  http://www.gnu.org/licenses/gpl-2.0.html
+ */
+
+/*
  * emsearch.h
  *
  *  Created on: Nov 16, 2009
@@ -105,7 +124,7 @@ int estimate(
 	int numSamples, t_prob *pSamples, int *perturbations,
 	int maxParentSet, int maxComplexity,
 	int **parentsPool, int **fixedParentsPool, 
-	int emIterations, double stopDelta, int netSelection = 0, int becho = FALSE) {
+	int emIterations, double stopDelta = 0, int emStartIterations = 0, int netSelection = 0, int becho = FALSE) {
 
 	int i, j, k, d, ncomb, ncombMaxLogLik, nnode, numNodes;
 	int maxCategories, complx, emiter, curSelComplexity;
@@ -116,9 +135,9 @@ int estimate(
 	int nCurNet, nLoopNet;
 	I_NETPARAMS<t_prob> *pCurNet, *pNewNet, **pCurCatnetList;
 
-	t_prob ftemp, fsum, fsumsum, curSelLoglik, logdiff;
+	t_prob ftemp, fsum, fsumsum, curSelLoglik, logdiff, bUpdate;
 	int c_setSize, cC_setSize, ic, icC;
-	const t_prob *pc, *qc, *pcC, *qcC;
+	const t_prob *qc, *pcC, *qcC;
 
 	t_prob **pBetasNext, *pSigmasNext;
 	t_prob *pNodeBetas, fNodeSigma;
@@ -139,7 +158,6 @@ int estimate(
 		emIterations = 2;
 
 	numNodes = pBaseNet->numNodes();
-	//maxParentSet < pBaseNet->maxParentSet();
 	maxCategories = pBaseNet->maxCategories();
 	pNodeNumCats = pBaseNet->numCategories();
 
@@ -199,6 +217,7 @@ int estimate(
 	nLoopNet = 0;
 	while(emiter < emIterations) {
 
+	pCurNet = 0;
 	switch(netSelection) {
 	case 1: // AIC
 		pCurNet = 0;
@@ -230,7 +249,6 @@ int estimate(
 		break;
 	default:
 		// optimize w.r.t. max complexity network
-		pCurNet = 0;
 		for(nCurNet = 0; nCurNet < m_nNets; nCurNet++)
 			if(m_pCurNets[nCurNet]) {
 				pCurNet = m_pCurNets[nCurNet];
@@ -244,22 +262,26 @@ int estimate(
 	curSelLoglik = pCurNet->getLoglik();
 
 	// work with the sample distribution of pCurNet if necessary
-	if(pCurNet->maxParentSet() > 2 || pCurNet->maxCategories()*pCurNet->maxParentSet() > 5 || 
-		numNodes*pCurNet->maxCategories()*pCurNet->maxParentSet() > 80) {
+	if(pCurNet->maxParentSet() > 3 || pCurNet->maxCategories()*pCurNet->maxParentSet() > 9 || 
+		numNodes*pCurNet->maxCategories()*pCurNet->maxParentSet() > 81) {
 		k = (int)exp(log((t_prob)(pCurNet->maxCategories()))*(1+pCurNet->maxParentSet())) * 50;
 		if(becho)
 			printf("simulate probability with sample of size %d\n", k);
 		pCurNet->catnetSample(k);
 	}
 
-	//printf("pCurNet: complx = %d, logLik = %f\n", curSelComplexity, curSelLoglik);
+	if(becho)
+		printf("CurNet: complx = %d, logLik = %f\n", curSelComplexity, curSelLoglik);
 
 	/* update betas and sigmas */
 
 	/* copy the current beta set !!! */
 	for(i = 0; i < numNodes; i++) 
 		memcpy(pBetasNext[i], pCurNet->betas()[i], pNodeNumCats[i]*sizeof(t_prob));
-	memcpy(pSigmasNext, pCurNet->sigmas(), numNodes*sizeof(t_prob));
+	if(pCurNet->sigmas())
+		memcpy(pSigmasNext, pCurNet->sigmas(), numNodes*sizeof(t_prob));
+	else
+		memset(pSigmasNext, 0, numNodes*sizeof(t_prob));
 
 	/* and create the no-parents-network */
 	pNewNet = pCurNet->clone();
@@ -280,7 +302,6 @@ int estimate(
 				}
 			}
 			psamples = psubsamples;
-			//printf("perturbations: nnode = %d, numsamples = %d\n", nnode, numsamples);
 		}
 		else {
 			numsamples = numSamples;
@@ -290,59 +311,26 @@ int estimate(
 		if(numsamples <= 0) {
 			pCurNet->setNodeLoglik(nnode, 0);
 			pNewNet->setNodeLoglik(nnode, 0);
-			//printf("numsamples = 0,   pNewNet: nnode = %d, fNodeLogLik = %f\n", nnode, pNewNet->getNodeLoglik(nnode));
 			continue;
 		}
 
 		pCurNet->findNodeMarginalProb(nnode, psamples, numsamples);
-		c_setSize = pCurNet->pc_size();
-		pc = pCurNet->pc();
-		qc = pCurNet->qc();
 
-		for(ic = 0; ic < pNodeNumCats[nnode]; ic++) {
-			ftemp = 0;
-			fsum = 0;
-			for(j = 0; j < numsamples; j++) {
-				ftemp += qc[j*c_setSize + ic] * psamples[j * numNodes + nnode]; 
-				fsum += qc[j*c_setSize + ic];
-			}
-			if(fsum > 0) {
-				/* update only if possible, don't put 0, remember the last good value instead */
-				fsum = 1/fsum;
-				pBetasNext[nnode][ic] = ftemp * fsum;
-			}
-			//printf("fsum = %f, pBetasNext[%d][%d] = %f\n", fsum, nnode, ic, pBetasNext[nnode][ic]);
-		}
-
-		fsum = 0;
-		for(ic = 0; ic < pNodeNumCats[nnode]; ic++) {
-			for(j = 0; j < numsamples; j++) {
-				ftemp = psamples[j * numNodes + nnode] - pBetasNext[nnode][ic];
-				ftemp = ftemp * ftemp;
-				fsum += qc[j*c_setSize + ic] * ftemp;
-			}
-		}
-		if(fsum > 0) 
-			pSigmasNext[nnode] = fsum / numsamples;
-		if(pSigmasNext[nnode] > 0)
-			fBetaSigmaLoglik = -0.5*(log(PI2*pSigmasNext[nnode]) + 1)*numsamples;
-		else
-			fBetaSigmaLoglik = -FLT_MAX;
-
-//printf("pSigmasNext[%d] = %f\n", nnode, pSigmasNext[nnode]);
-//printf("fsum = %f, numsamples = %d, fBetaSigmaLoglik = %f\n", fsum, numsamples, fBetaSigmaLoglik);
-//printf("node = %d, fBetaSigmaLoglik = %f\n", nnode+1, fBetaSigmaLoglik);
+		fBetaSigmaLoglik = pCurNet->estimateParameters(nnode, psamples, numsamples, pBetasNext[nnode], &pSigmasNext[nnode]);
 
 		/* refresh probabilities  */
+		c_setSize = pNodeNumCats[nnode];
+		qc = pCurNet->qc();
 		pprobs = (t_prob*)CATNET_MALLOC(c_setSize*sizeof(t_prob));
 
 		fsumsum = 0;
 		ftemp = 0;
-		for(ic = 0; ic < c_setSize/*pNodeNumCats[nnode]*/; ic++) {
+		for(ic = 0; ic < c_setSize; ic++) {
 			fsum = 0;
 			for(j = 0; j < numsamples; j++)
 				fsum += qc[j*c_setSize + ic];
-			ftemp += fsum * log(fsum);
+			if(fsum > 0)
+				ftemp += fsum * log(fsum);
 			fsumsum += fsum;
 			pprobs[ic] = fsum;
 		}
@@ -350,10 +338,13 @@ int estimate(
 			fLogLik = (ftemp - fsumsum*log(fsumsum));
 			fsumsum = 1/ fsumsum;
 		}
-		else
+		else {
 			fLogLik = -FLT_MAX;
-		for(ic = 0; ic < c_setSize; ic++)
+			fsumsum = 0;
+		}
+		for(ic = 0; ic < c_setSize; ic++) {
 			pprobs[ic] = pprobs[ic] * fsumsum;
+		}
 		pProbMaxNode = new PROB_LIST<t_prob>(pNodeNumCats[nnode], 
 			maxCategories, 0, 0, (double*)pprobs, c_setSize);
 
@@ -373,8 +364,6 @@ int estimate(
 		// you'll need these
 		pCurNet->setNodeLoglik(nnode, fBetaSigmaLoglik);
 		pNewNet->setNodeLoglik(nnode, fBetaSigmaLoglik + fLogLik);
-
-		//printf("pNewNet: nnode = %d, fNodeLogLik = %f\n", nnode, pNewNet->getNodeLoglik(nnode));
 	} /* nnode */
 
 	// refresh curNet's betas and sigmas
@@ -393,10 +382,15 @@ int estimate(
 		break;
 	}
 
-	//printf("pNewNet %p: complx = %d, fNodeLogLik = %f\n", pNewNet, complx, pNewNet->loglik());
+	bUpdate = 0;
 
 	/* update G_i */
 	for(nnode = 0; nnode < numNodes; nnode++) {
+
+		//if(becho) {
+		//	printf("processing node %d\n", nnode+1);
+		//	printf("    [#parents][#combinations] = ");
+		//}
 
 		if(perturbations) {
 			numsamples = 0;
@@ -463,7 +457,9 @@ int estimate(
 			ncomblist = 0;
 			combinationSets(pcomblist, ncomblist, 0, parset, parsetsize, 
 				0, d - fixparsetsize);
-			//printf("nnode = %d, d = %d, ncomblist = %d\n", nnode,  d, ncomblist);
+			//if(becho)
+			//	printf("[%d]%d  ", d, ncomblist);
+			printf("nnode = %d, d = %d, ncomblist = %d\n", nnode,  d, ncomblist);
 			if(fixparsetsize > 0) {
 		        	if(!pcomblist || ncomblist < 1) {
 		        	    	pcomblist = (int**)CATNET_MALLOC(1*sizeof(int*));
@@ -490,39 +486,15 @@ int estimate(
 			fNodeSigma = 0;
 
 			for(ncomb = 0; ncomb < ncomblist; ncomb++) {
+
 				if(pCurNet->findNodeJointProb(nnode, pcomblist[ncomb], d, 
-					psamples, numsamples) != ERR_CATNET_OK)
+					psamples, numsamples) != ERR_CATNET_OK) {
 					continue; 
+				}
+
 				// find betas and sigmas
-				c_setSize = pCurNet->pc_size();
-				pc = pCurNet->pc();
-				qc = pCurNet->qc();
-				for(ic = 0; ic < pNodeNumCats[nnode]; ic++) {
-					ftemp = 0;
-					fsum = 0;
-					for(j = 0; j < numsamples; j++) {
-						ftemp += qc[j*c_setSize + ic] * psamples[j * numNodes + nnode]; 
-						fsum += qc[j*c_setSize + ic];
-					}
-					if(fsum > 0) {
-						fsum = 1/fsum;
-						pBetasNext[nnode][ic] = ftemp * fsum;
-					}
-				}
-				fsum = 0;
-				for(ic = 0; ic < pNodeNumCats[nnode]; ic++) {
-					for(j = 0; j < numsamples; j++) {
-						ftemp = psamples[j * numNodes + nnode] - pBetasNext[nnode][ic];
-						ftemp = ftemp * ftemp;
-						fsum += qc[j*c_setSize + ic] * ftemp;
-					}
-				}
-				if(fsum > 0) 
-					pSigmasNext[nnode] = fsum / numsamples;
-				if(pSigmasNext[nnode] > 0)
-					fBetaSigmaLoglik = -0.5*(log(PI2*pSigmasNext[nnode]) + 1)*numsamples;
-				else
-					fBetaSigmaLoglik = -FLT_MAX;
+				fBetaSigmaLoglik = pCurNet->estimateParameters(nnode, psamples, numsamples,
+							 pBetasNext[nnode], &pSigmasNext[nnode]);
 
 				cC_setSize = pCurNet->pcC_size();
 				pcC = pCurNet->pcC();
@@ -536,34 +508,41 @@ int estimate(
 					ftemp = 0;
 					for(ic = 0; ic < pNodeNumCats[nnode]; ic++) {
 						fsum = 0;
-						for(j = 0; j < numsamples; j++)
+						for(j = 0; j < numsamples; j++) 
 							fsum += qcC[j*cC_setSize + icC + ic];
-						ftemp += fsum * log(fsum);
+						//if(fsum > 0) // blung incompatibility
+						if(fsum > 0)
+							ftemp += fsum * log(fsum);
 						fsumsum += fsum;
 						pprobs[icC + ic] = fsum;
 					}
-					fLogLik += (ftemp - fsumsum*log(fsumsum));
-					if(fsumsum > 0) fsumsum = 1/fsumsum;
-					for(ic = 0; ic < pNodeNumCats[nnode]; ic++)
+					if(fsumsum > 0 && fsumsum < FLT_MAX) {
+						fLogLik += (ftemp - fsumsum*log(fsumsum));
+						fsumsum = 1/fsumsum;
+					}
+					else {
+						fLogLik = -FLT_MAX;
+						fsumsum = 0;
+					}
+					for(ic = 0; ic < pNodeNumCats[nnode]; ic++) {
 						pprobs[icC + ic] = pprobs[icC + ic] * fsumsum;
+					}
 				}
 
 				// sum of two conditionals
-				fLogLik += fBetaSigmaLoglik;
+				if(fBetaSigmaLoglik < FLT_MAX)
+					fLogLik += fBetaSigmaLoglik;
 
 				if(fMaxLogLik < fLogLik) {
 					memcpy(pNodeBetas, pBetasNext[nnode], pNodeNumCats[nnode]*sizeof(t_prob));
 					fNodeSigma = pSigmasNext[nnode];
-
 					if(pProbMaxNode)
 						delete pProbMaxNode;
 					for(i = 0; i < d; i++)
-						parcats[i] = 
-							pNodeNumCats[pcomblist[ncomb][i]];
-					pProbMaxNode = 
-						new PROB_LIST<t_prob>(pNodeNumCats[nnode],
-						maxCategories, d, parcats,
-						pprobs, cC_setSize);
+						parcats[i] = pNodeNumCats[pcomblist[ncomb][i]];
+					pProbMaxNode = new PROB_LIST<t_prob>(pNodeNumCats[nnode],
+							maxCategories, d, parcats,
+							pprobs, cC_setSize);
 					if(!pProbMaxNode)
 						CATNET_MEM_ERR();
 					fMaxLogLik = fLogLik;
@@ -574,8 +553,8 @@ int estimate(
 				pCurNet->release_pqcC();
 
 			} /* for ncomb */				
-
 			if(ncombMaxLogLik >= 0 && pProbMaxNode) {
+
 				for(k = 0; k < m_nNets; k++) {
 					if(!m_pNextNets[k]) 
 						continue;
@@ -599,6 +578,7 @@ int estimate(
 						if(pCurCatnetList[complx]->loglik() < fLogLik) {
 							pCurCatnetList[complx]->releaseRef();
 							pCurCatnetList[complx] = pNewNet;
+							bUpdate = 1;
 						}
 						else {
 							pNewNet->releaseRef();
@@ -624,6 +604,9 @@ int estimate(
         		pcomblist = 0;
 			ncomblist = 0;
 		} /* for d */
+
+		//if(becho)
+		//	printf("\n");
 
 		/* merge m_pNextNets and pCurCatnetList */		
 		for(j = 0; j < m_nNets; j++) {
@@ -651,23 +634,23 @@ int estimate(
 	logdiff = FLT_MAX;
 	if(m_pNextNets[curSelComplexity])
 		logdiff = m_pNextNets[curSelComplexity]->loglik() - curSelLoglik;
+	if(logdiff < 0)
+		logdiff = -logdiff;
 
 	i = 0;
 	for(j = 0; j < m_nNets; j++)  {
-
-		if(m_pCurNets[j])
-			m_pCurNets[j]->releaseRef();
-		m_pCurNets[j] = 0;
-
-		m_emLoglik[j + m_nNets*emiter] = 0;
+		m_emLoglik[j + m_nNets*emiter] = -FLT_MAX;
+		// replace the old networks
 		if(m_pNextNets[j]) {
 			i++;
 			m_emLoglik[j + m_nNets*emiter] = m_pNextNets[j]->loglik();
-			//printf("pNextNets[%d]  = %p\n", j, m_pNextNets[j]);
 		}
+	
+		if(m_pCurNets[j])
+			m_pCurNets[j]->releaseRef();
 		m_pCurNets[j] = m_pNextNets[j];
 		m_pNextNets[j] = 0;
-	} 
+	}
 
 	emiter++;
 
@@ -675,7 +658,7 @@ int estimate(
 		printf("EM Iteration %d: #nets = %d\n", emiter, i);
 
 	/* a local maximum is achieved */
-	if(logdiff < stopDelta) {
+	if(emiter > emStartIterations && logdiff < stopDelta) {
 		emIterations = emiter;
 		break;
 	}
@@ -737,7 +720,7 @@ int estimate(
 	if(j < m_nNets) {
 		pBetasNext = (double**)m_pCurNets[j]->betas();
 		pSigmasNext = (double*)m_pCurNets[j]->sigmas();
-		if(becho) {
+		if(becho && pBetasNext) {
 			printf("Loglik sequence for network with complexity %d: ", j);
 			for(emiter = 0; emiter < emIterations; emiter++)
 				printf("  %.4f", m_emLoglik[j + m_nNets*emiter]);
@@ -745,9 +728,11 @@ int estimate(
 			for(i = 0; i < numNodes; i++) {
 				printf("  beta[%d] = ", i+1);
 				for(ic = 0; ic < pNodeNumCats[i]; ic++)
-					printf("%.4f  ", pBetasNext[i][ic]);
+					if(pBetasNext[i])
+						printf("%.4f  ", pBetasNext[i][ic]);
 				printf("\n");
-				printf("    sigma[%d] = %.4f\n", i+1, pSigmasNext[i]);
+				if(pSigmasNext)
+					printf("    sigma[%d] = %.4f\n", i+1, pSigmasNext[i]);
 			}
 			printf("\n");
 		}

@@ -1,4 +1,23 @@
 /*
+ *  mugnet : Mixed Categorical Bayesian networks
+ *  Copyright (C) 2009--2010  Nikolay Balov
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, a copy is available at
+ *  http://www.gnu.org/licenses/gpl-2.0.html
+ */
+
+/*
  * catnet.h
  *
  *  Created on: Nov 16, 2009
@@ -159,7 +178,7 @@ public:
 
 		_release();
 
-		int i, j, *nodeparcats;
+		int i, j, *nodeparcats, nodenamelen;
 
 		if (nnodes < 1 || maxpars < 0)
 			return;
@@ -183,13 +202,9 @@ public:
 				m_nodeNames[i] = 0;
 				if (!nodes[i])
 					continue;
-				m_nodeNames[i] = (t_node*) CATNET_MALLOC(t_node_size * sizeof(t_node));
-				if(strlen(nodes[i]) < t_node_size)
-					strcpy(m_nodeNames[i], nodes[i]);
-				else {
-					memcpy(m_nodeNames[i], nodes[i], (t_node_size-1) * sizeof(t_node));
-					m_nodeNames[i][t_node_size-1] = 0;
-				}
+				nodenamelen = strlen(nodes[i]);
+				m_nodeNames[i] = (t_node*) CATNET_MALLOC((nodenamelen+1) * sizeof(t_node));
+				strcpy(m_nodeNames[i], nodes[i]);
 			}
 		}
 		else {
@@ -197,8 +212,11 @@ public:
 		}
 
 		if (pnumpars > 0 && ppars != 0) {
+			m_maxParents = 0;
 			memcpy(m_numParents, pnumpars, m_numNodes * sizeof(int));
 			for (i = 0; i < m_numNodes; i++) {
+				if(m_maxParents < m_numParents[i])
+					m_maxParents = m_numParents[i];
 				m_parents[i] = (int*) CATNET_MALLOC(m_numParents[i] * sizeof(int));
 				memset(m_parents[i], 0, m_numParents[i] * sizeof(int));
 				if(ppars[i])
@@ -231,24 +249,44 @@ public:
 		m_loglik = loglik;
 	}
 
+	void setNodeNames(char **pnames, const int *porder) {
+		int i;
+		const char *str;
+		if (!porder || !pnames) 
+			return;
+		if(!m_nodeNames) {
+			m_nodeNames = (t_node**) CATNET_MALLOC(m_numNodes * sizeof(t_node*));
+			memset(m_nodeNames, 0, m_numNodes * sizeof(t_node*));
+		}
+		for (i = 0; i < m_numNodes; i++) {
+			m_nodeNames[i] = 0;
+			if (porder[i] < 1 || porder[i] > m_numNodes)
+				break;
+			str = pnames[porder[i]-1];
+			if(m_nodeNames[i])
+				CATNET_FREE(m_nodeNames[i]);
+			m_nodeNames[i] = (t_node*) CATNET_MALLOC((strlen(str)+1) * sizeof(char));
+			strcpy((char*)m_nodeNames[i], str);
+		}
+	}
+
 	void setNodesOrder(const int *porder) {
 		int i;
 		char str[256];
-
-		// reset node names only
 		if (!porder) 
 			return;
-		if(!m_nodeNames)
-			m_nodeNames = (t_node**) CATNET_MALLOC(m_numNodes * sizeof(t_node*));	
+		if(!m_nodeNames) {
+			m_nodeNames = (t_node**) CATNET_MALLOC(m_numNodes * sizeof(t_node*));
+			memset(m_nodeNames, 0, m_numNodes * sizeof(t_node*));
+		}
 		for (i = 0; i < m_numNodes; i++) {
 			m_nodeNames[i] = 0;
 			if (porder[i] < 1 || porder[i] > m_numNodes)
 				break;
 			sprintf(str, "N%d", (int)porder[i]);
-			if(t_node_size <= strlen(str))
-				m_nodeNames[i] = (t_node*) CATNET_MALLOC((strlen(str)+1) * sizeof(t_node));
-			else
-				m_nodeNames[i] = (t_node*) CATNET_MALLOC(t_node_size * sizeof(t_node));
+			if(m_nodeNames[i])
+				CATNET_FREE(m_nodeNames[i]);
+			m_nodeNames[i] = (t_node*) CATNET_MALLOC((strlen(str)+1) * sizeof(char));
 			strcpy((char*)m_nodeNames[i], str);
 		}
 	}
@@ -351,6 +389,9 @@ public:
 			m_parents[node] = (int*) CATNET_MALLOC(m_numParents[node] * sizeof(int));
 		}
 		memcpy(m_parents[node], parents, m_numParents[node] * sizeof(int));
+
+		if(m_maxParents < m_numParents[node])
+			m_maxParents = m_numParents[node];
 
 		if (!m_pProbLists)
 			m_pProbLists = (PROB_LIST<t_prob>**) CATNET_MALLOC(m_numNodes * sizeof(PROB_LIST<t_prob>*));
@@ -916,11 +957,6 @@ public:
 			CATNET_FREE(m_jointPool);
 		m_jointPool = _findParentPool(pnodes, numnodes, m_jointPoolSize);
 
-		//if(exp(log(m_jointPoolSize+1) * m_maxCategories) > MAX_MEM_PROB) {
-		//	// MC simulation of the joint probability
-		//}
-		//printf("m_jointPoolSize = %d\n", m_jointPoolSize);
-
 		// add nnode to the parents list
 		paux = (int*) CATNET_MALLOC((m_jointPoolSize + numnodes) * sizeof(int));
 		if (m_jointPool && m_jointPoolSize > 0) 
@@ -948,8 +984,7 @@ public:
 		m_pBlockSizes = (int*) CATNET_MALLOC(m_jointPoolSize * sizeof(int));
 		m_pBlockSizes[m_jointPoolSize - 1] = 1;
 		for (i = m_jointPoolSize - 2; i >= 0; i--) {
-			m_pBlockSizes[i] = m_pBlockSizes[i + 1] * m_numCategories[m_jointPool[i + 1]];
-			
+			m_pBlockSizes[i] = m_pBlockSizes[i + 1] * m_numCategories[m_jointPool[i + 1]];	
 		}
 
 		m_jointProbSize = 1;
@@ -967,8 +1002,6 @@ public:
 			poolnode = m_jointPool[ipool];
 			probnode = m_pProbLists[poolnode];
 
-			//cout << ipool << ", poolnode = " << poolnode + 1 << "\n";
-
 			if (m_numParents[poolnode] == 0) {
 				for (ii = 0; ii < m_jointProbSize; ii += (m_pBlockSizes[ipool]
 						* m_numCategories[poolnode])) {
@@ -982,7 +1015,6 @@ public:
 				continue;
 			}
 
-			//cout << "Parents: ";
 			memset(paridx, 0, m_jointPoolSize * sizeof(int));
 			for (ipar = 0; ipar < m_numParents[poolnode]; ipar++) {
 				par = m_parents[poolnode][ipar];
@@ -994,9 +1026,7 @@ public:
 					break;
 				}
 				paridx[i] = ipar + 1;
-				//cout << ipar + 1 << ", ";
 			}
-			//cout << "\n";
 
 			memset(pcats, 0, m_maxParents * sizeof(int));
 			for (ii = 0; ii < m_jointProbSize; ii += (m_pBlockSizes[ipool] * m_numCategories[poolnode])) {
@@ -1004,14 +1034,12 @@ public:
 					if (paridx[j] > 0) {
 						ic = (int) (ii / m_pBlockSizes[j]);
 						ic -= m_numCategories[poolnode] * (int) (ic / m_numCategories[poolnode]);
-						//cout << "paridx[i] = " << paridx[j] << ", ic = " << ic << "\n";
 						pcats[paridx[j] - 1] = ic;
 					}
 				}
 				parprob = probnode->find_slot(0, pcats, 0);
 				if (!parprob)
 					continue;
-				//cout << ii << ", " << m_pBlockSizes[ipool] << ", " << m_jointProbSize << "\n";
 				for (ic = 0; ic < m_numCategories[poolnode]; ic++) {
 					i0 = ic * m_pBlockSizes[ipool];
 					for (i = 0; i < m_pBlockSizes[ipool]; i++) {
@@ -1033,7 +1061,6 @@ public:
 		
 		/* ASSUME THAT pnodes are consistent the topological order of the network, i.e. 
 		   no node with higher index is a parent of a node with lower one  */
-//printf("FindJointProb ");
 		if (findJointProb(pnodes, numnodes) != ERR_CATNET_OK)
 			return ERR_CATNET_MEM;
 
@@ -1042,8 +1069,6 @@ public:
 		m_margProbSize = m_jointProbSize;
 		m_margProb = (t_prob*) CATNET_MALLOC(m_jointProbSize * sizeof(t_prob));
 		memcpy(m_margProb, m_jointProb, m_jointProbSize*sizeof(t_prob));
-
-//printf("numnodes = %d, jointProbSize = %d\n", numnodes, m_jointProbSize);
 
 		paux = (t_prob*) CATNET_MALLOC(m_jointProbSize * sizeof(t_prob));
 
@@ -1068,9 +1093,6 @@ public:
 
 			newsize = (int)(m_margProbSize/m_numCategories[nnode]);
 
-//printf("imarg = %d, i = %d, nnode=%d, margProbSize = %d, newsize = %d, m_pBlockSizes[i] = %d \n", 
-//imarg, i, nnode+1, m_margProbSize, newsize, m_pBlockSizes[i]);
-
 			ii = 0;
 			k = 0;
 			while(ii < newsize) {
@@ -1078,7 +1100,6 @@ public:
 					kk = k + m;
 					paux[ii] = 0;
 					for(ic = 0; ic < m_numCategories[nnode]; ic++) {
-//printf("ii = %d, k = %d, kk=%d, ic=%d\n", ii, k, kk, ic);
 						paux[ii] += m_margProb[kk];
 						kk += m_pBlockSizes[i];
 					}
@@ -1109,13 +1130,6 @@ public:
 		CATNET_FREE(m_margProb);
 		m_margProb = paux;
 
-//printf("m_jointProb=%p, m_margProb=%p\n", m_jointProb, m_margProb);
-
-//printf("margIndex: ");
-//for(k=0;k<m_margIndexSize;k++)
-//	printf("%d, ", m_margIndex[k]);
-//printf("\n");
-
 		return ERR_CATNET_OK;
 	}
 
@@ -1131,7 +1145,6 @@ public:
 
 	t_prob getCatProb(int *pcats, int numnodes) {
 		int ipos, i, j;
-//printf("numnodes = %d, nBlockSizes = %d, margIndexSize = %d\n", numnodes, m_nBlockSizes, m_margIndexSize);
 		if(!m_margProb || numnodes != m_nBlockSizes || numnodes != m_margIndexSize)
 			return 0;
 		ipos = 0;

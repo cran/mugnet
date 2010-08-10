@@ -9,8 +9,8 @@ priorOrder <- seq(1:nrow(lung.alive))
 ###################################################################
 ## BIC
 
-eval.dead <- mgSearchOrder(lung.dead, NULL, 3, NULL, 1, 0, priorOrder, NULL, NULL, emIter=1000, stopDelta=0.01, selectMode="BIC", echo=TRUE)
-eval.alive <- mgSearchOrder(lung.alive, NULL, 3, NULL, 1, 0, priorOrder, NULL, NULL, emIter=1000, stopDelta=0.01, selectMode="BIC", echo=TRUE)
+eval.dead <- mgSearchOrder(lung.dead, NULL, 3, NULL, 1, 0, priorOrder, NULL, NULL, emIter=1000, stopDelta=0.001, selectMode="BIC", echo=TRUE)
+eval.alive <- mgSearchOrder(lung.alive, NULL, 3, NULL, 1, 0, priorOrder, NULL, NULL, emIter=1000, stopDelta=0.001, selectMode="BIC", echo=TRUE)
 
 eval <- eval.dead
 for(i in 1:length(eval@nets)) {
@@ -35,8 +35,8 @@ bst0a@meta <- "G0a, BIC"
 ###################################################################
 ## AIC
 
-eval.dead <- mgSearchOrder(lung.dead, NULL, 3, NULL, 1, 0, priorOrder, NULL, NULL, emIter=1000, stopDelta=0.01, selectMode="AIC", echo=TRUE)
-eval.alive <- mgSearchOrder(lung.alive, NULL, 3, NULL, 1, 0, priorOrder, NULL, NULL, emIter=1000, stopDelta=0.01, selectMode="AIC", echo=TRUE)
+eval.dead <- mgSearchOrder(lung.dead, NULL, 3, NULL, 1, 0, priorOrder, NULL, NULL, emIter=1000, stopDelta=0.001, selectMode="AIC", echo=TRUE)
+eval.alive <- mgSearchOrder(lung.alive, NULL, 3, NULL, 1, 0, priorOrder, NULL, NULL, emIter=1000, stopDelta=0.001, selectMode="AIC", echo=TRUE)
 eval <- eval.dead
 for(i in 1:length(eval@nets)) {
   eval@nets[[i]]@likelihood <- sum(mgNodeLoglik(eval@nets[[i]], 1:eval@numnodes, lung.dead))
@@ -60,8 +60,8 @@ bst1a@meta <- "G1a, AIC"
 ###################################################################
 ## 1-parent saturated
 
-eval.dead <- mgSearchOrder(lung.dead, NULL, 3, NULL, 1, 0, priorOrder, NULL, NULL, emIter=1000, stopDelta=0.01, selectMode=0, echo=TRUE)
-eval.alive <- mgSearchOrder(lung.alive, NULL, 3, NULL, 1, 0, priorOrder, NULL, NULL, emIter=1000, stopDelta=0.01, selectMode=0, echo=TRUE)
+eval.dead <- mgSearchOrder(lung.dead, NULL, 3, NULL, 1, 0, priorOrder, NULL, NULL, emIter=1000, stopDelta=0.001, selectMode=0, model="Gaus", echo=TRUE)
+eval.alive <- mgSearchOrder(lung.alive, NULL, 3, NULL, 1, 0, priorOrder, NULL, NULL, emIter=1000, stopDelta=0.001, selectMode=0, model="Gaus", echo=TRUE)
 eval <- eval.dead
 for(i in 1:length(eval@nets)) {
   eval@nets[[i]]@likelihood <- sum(mgNodeLoglik(eval@nets[[i]], 1:eval@numnodes, lung.dead))
@@ -77,10 +77,35 @@ for(i in 1:length(eval@nets)) {
 }
 eval.alive <- eval
 
-bst2d <- cnFind(eval.dead, 86)
+bst2d <- eval.dead@nets[[length(eval.dead@nets)]]
 bst2d@meta <- "G2d"
-bst2a <- cnFind(eval.alive, 86)
+bst2a <- eval.alive@nets[[length(eval.alive@nets)]]
 bst2a@meta <- "G2a"
+
+###################################################################
+## 2-parents saturated
+
+eval.dead <- mgSearchOrder(lung.dead, NULL, 3, NULL, 2, 0, priorOrder, NULL, NULL, emIter=1000, stopDelta=0.01, selectMode=0, model="Gaus", echo=TRUE)
+eval.alive <- mgSearchOrder(lung.alive, NULL, 3, NULL, 2, 0, priorOrder, NULL, NULL, emIter=1000, stopDelta=0.01, selectMode=0, model="Gaus", echo=TRUE)
+eval <- eval.dead
+for(i in 1:length(eval@nets)) {
+  eval@nets[[i]]@likelihood <- sum(mgNodeLoglik(eval@nets[[i]], 1:eval@numnodes, lung.dead))
+  eval@nets[[i]]@meta <- "PI3K pathway"
+  eval@loglik[i] <- eval@nets[[i]]@likelihood
+}
+eval.dead <- eval
+eval <- eval.alive
+for(i in 1:length(eval@nets)) {
+  eval@nets[[i]]@likelihood <- sum(mgNodeLoglik(eval@nets[[i]], 1:eval@numnodes, lung.alive))
+  eval@nets[[i]]@meta <- "PI3K pathway"
+  eval@loglik[i] <- eval@nets[[i]]@likelihood
+}
+eval.alive <- eval
+
+bst3d <- eval.dead@nets[[length(eval.dead@nets)]]
+bst3d@meta <- "G3d"
+bst3a <- eval.alive@nets[[length(eval.alive@nets)]]
+bst3a@meta <- "G3a"
 
 ###################################################################
 ## Goodness-of-Fit
@@ -165,3 +190,20 @@ cnDot(list(bst1a),"bst1a")
 cnDot(list(bst1d),"bst1d")
 cnDot(list(bst2a),"bst2a")
 cnDot(list(bst2d),"bst2d")
+cnDot(list(bst3a),"bst3a")
+cnDot(list(bst3d),"bst3d")
+
+par(mfrow=c(1,1))
+postscript("gsk3a_akt1_plot1.ps")
+plot(lung[5,],lung[8,], xlab=bst2d@nodes[5], ylab=bst2d@nodes[8], main="original sample")
+dev.off()
+ss <- mgSamples(bst2d,200)
+postscript("gsk3a_akt1_plot2.ps")
+plot(ss[,5],ss[,8], xlab=bst2d@nodes[5], ylab=bst2d@nodes[8], main="simulated sample")
+abline(v=bst2d@betas[[5]][1])
+abline(v=bst2d@betas[[5]][2])
+abline(v=bst2d@betas[[5]][3])
+abline(h=bst2d@betas[[8]][1])
+abline(h=bst2d@betas[[8]][2])
+abline(h=bst2d@betas[[8]][3])
+dev.off()

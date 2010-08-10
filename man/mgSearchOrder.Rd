@@ -11,9 +11,11 @@ mgSearchOrder(data, perturbations,
 		maxParentSet, maxComplexity, 
 		nodeOrder, 
 		parentsPool=NULL, fixedParentsPool=NULL, 
-		emIterations=5,
+		emIter=5,
 		stopDelta=0,
+		emStartIter=2,
 		selectMode="BIC",
+		model="Gaus",
 		echo=FALSE)
 }
 \arguments{
@@ -26,9 +28,11 @@ mgSearchOrder(data, perturbations,
 	\item{nodeOrder}{a \code{vector} specifying a node order. The search is among the networks consistent with this topological order}
 	\item{parentsPool}{a \code{list} of node parents to choose from}
 	\item{fixedParentsPool}{a \code{list} of mandatory node parents}
-	\item{emIterations}{an \code{integer}, number of iterations for the EM algorithm. The default value is 5.}
+	\item{emIter}{an \code{integer}, number of iterations for the EM algorithm. The default value is 5.}
 	\item{stopDelta}{a \code{numeric}, convergence stopping threshold}
+	\item{emStartIter}{an \code{integer}, the number of EM iterations to be performed before checking for convergence}
 	\item{selectMode}{a \code{character}, network selection criterion such as "AIC" and "BIC"}
+	\item{model}{a \code{character}, network node model such as "Gaus", "Pois" and "Exp"}
 	\item{echo}{a \code{logical} that sets on/off some functional progress and debug information}
 }
 

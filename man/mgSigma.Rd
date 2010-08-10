@@ -21,7 +21,7 @@ mgSigma(object)
 \author{N. Balov}
 \examples{
 cnet <- cnRandomCatnet(numnodes=10, maxParents = 3, numCategories = 2)
-nnet <- new("mgNetwork", cnet, NULL, NULL)
+nnet <- new("mgNetwork", cnet, "Gaus", NULL, NULL)
 mgSigma(nnet)
 }
 \keyword{methods}

@@ -1,5 +1,6 @@
 \name{mgLoglik-method}
 \alias{mgLoglik}
+\alias{mgLoglik,mgNetwork-method}
 
 \title{Sample Log-likelihood}
 

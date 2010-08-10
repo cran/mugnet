@@ -18,117 +18,139 @@
  */
 
 /*
- * mixnet.cpp
+ * exp.cpp
  *
- *  Created on: Nov 11, 2010
+ *  Created on: May 11, 2010
  *      Author: Nikolay Balov
  */
 
 
 #include "utils.h"
-#include "mixnet.h"
+#include "exp.h"
 
-void CMixNet::setNodeBetas(int nnode, double *pbetas) {
+void CExpNet::setNodeBetas(int nnode, double *pbetas) {
 	if(nnode < 0 || nnode >= m_numNodes)
 		return;
-	if(!m_betas) {
-		m_betas = (double**)CATNET_MALLOC(m_numNodes*sizeof(double*));
-		memset(m_betas, 0, m_numNodes*sizeof(double*));
+	if(!m_lambdas) {
+		m_lambdas = (double**)CATNET_MALLOC(m_numNodes*sizeof(double*));
+		memset(m_lambdas, 0, m_numNodes*sizeof(double*));
 	}
-	if(!m_betas[nnode])
-		m_betas[nnode] = (double*)CATNET_MALLOC(m_numCategories[nnode]*sizeof(double));
-	memcpy(m_betas[nnode], pbetas, m_numCategories[nnode]*sizeof(double));
+	if(!m_loglambdas) {
+		m_loglambdas = (double**)CATNET_MALLOC(m_numNodes*sizeof(double*));
+		memset(m_loglambdas, 0, m_numNodes*sizeof(double*));
+	}
+	if(!m_lambdas[nnode])
+		m_lambdas[nnode] = (double*)CATNET_MALLOC(m_numCategories[nnode]*sizeof(double));
+	if(!m_loglambdas[nnode])
+		m_loglambdas[nnode] = (double*)CATNET_MALLOC(2*m_numCategories[nnode]*sizeof(double));
+	memcpy(m_lambdas[nnode], pbetas, m_numCategories[nnode]*sizeof(double));
+	for(int c = 0; c < m_numCategories[nnode]; c++) {
+		if(m_lambdas[nnode][c] > 0) {
+			m_loglambdas[nnode][c] = log((double)m_lambdas[nnode][c]);
+			m_loglambdas[nnode][m_numCategories[nnode]+c] = 1/(double)m_lambdas[nnode][c];
+		}
+		else {
+			m_loglambdas[nnode][c] = 0;
+			m_loglambdas[nnode][m_numCategories[nnode]+c] = 0;
+		}
+	}
 }
 
-const double **CMixNet::setBetas(double **pbetas, int nbetas) {
+const double **CExpNet::setBetas(double **pbetas, int nbetas) {
 	int i;
 	if(nbetas != m_numNodes)
 		return 0;
-	if(m_betas) { 
+	if(m_lambdas) { 
 		for (i = 0; i < m_numNodes; i++) {
-			if(m_betas[i])
-				CATNET_FREE(m_betas[i]);
-			m_betas[i] = 0;
+			if(m_lambdas[i])
+				CATNET_FREE(m_lambdas[i]);
+			m_lambdas[i] = 0;
 		}
-		CATNET_FREE(m_betas);
-		m_betas = 0;
+		CATNET_FREE(m_lambdas);
+		m_lambdas = 0;
 	}
-	m_betas = (double**)CATNET_MALLOC(m_numNodes*sizeof(double*));
+	m_lambdas = (double**)CATNET_MALLOC(m_numNodes*sizeof(double*));
+	if(m_loglambdas) { 
+		for (i = 0; i < m_numNodes; i++) {
+			if(m_loglambdas[i])
+				CATNET_FREE(m_loglambdas[i]);
+			m_loglambdas[i] = 0;
+		}
+		CATNET_FREE(m_loglambdas);
+		m_loglambdas = 0;
+	}
+	m_loglambdas = (double**)CATNET_MALLOC(m_numNodes*sizeof(double*));
 	for (i = 0; i < m_numNodes; i++) {
-		m_betas[i] = 0;
-		if(m_numCategories[i] > 0)
-			m_betas[i] = (double*)CATNET_MALLOC(m_numCategories[i]*sizeof(double));
+		m_lambdas[i] = 0;
+		if(m_numCategories[i] > 0) {
+			m_lambdas[i] = (double*)CATNET_MALLOC(m_numCategories[i]*sizeof(double));
+			m_loglambdas[i] = (double*)CATNET_MALLOC(2*m_numCategories[i]*sizeof(double));
+		}
 		else
 			continue;
 		if(pbetas[i])
-			memcpy(m_betas[i], pbetas[i], m_numCategories[i]*sizeof(double));
+			memcpy(m_lambdas[i], pbetas[i], m_numCategories[i]*sizeof(double));
 		else
-			memset(m_betas[i], 0, m_numCategories[i]*sizeof(double));
+			memset(m_lambdas[i], 0, m_numCategories[i]*sizeof(double));
+		for(int c = 0; c < m_numCategories[i]; c++) {
+			if(m_lambdas[i][c] > 0) {
+				m_loglambdas[i][c] = log((double)m_lambdas[i][c]);
+				m_loglambdas[i][m_numCategories[i]+c] = 1/(double)m_lambdas[i][c];
+			}
+			else {
+				m_loglambdas[i][c] = 0;
+				m_loglambdas[i][m_numCategories[i]+c] = 0;
+			}
+		}
 	}
-	return (const double **)m_betas;
+	return (const double **)m_lambdas;
 }
 
-void CMixNet::setNodeSigma(int nnode, double fSigma) {
-	if(nnode < 0 || nnode >= m_numNodes)
-		return;
-	if(!m_sigmas) 
-		m_sigmas = (double*)CATNET_MALLOC(m_numNodes*sizeof(double));
-	m_sigmas[nnode] = fSigma;
+void CExpNet::setNodeSigma(int nnode, double fSigma) {
 }
 
-const double *CMixNet::setSigmas(double *psigmas, int nsigmas) {
-	if(nsigmas != m_numNodes)
-		return 0;
-	if(m_sigmas) {
-		CATNET_FREE(m_sigmas);
-		m_sigmas = 0; 
-	}
-	m_sigmas = (double*)CATNET_MALLOC(m_numNodes*sizeof(double));
-	if(psigmas)
-		memcpy(m_sigmas, psigmas, m_numNodes*sizeof(double));
-	else
-		memset(m_sigmas, 0, m_numNodes*sizeof(double));
-	return (const double *)m_sigmas;
+const double *CExpNet::setSigmas(double *psigmas, int nsigmas) {
+	return (const double *)NULL;
 }
 
-const double **CMixNet::betas() {
-	return (const double **)m_betas;
+const double **CExpNet::betas() {
+	return (const double **)m_lambdas;
 }
 
-const double *CMixNet::sigmas() {
-	return (const double *)m_sigmas;
+const double *CExpNet::sigmas() {
+	return (const double *)NULL;
 }
 
-const double *CMixNet::pc() {
+const double *CExpNet::pc() {
 	return (const double*)m_pc;
 }
 
-const double *CMixNet::pcC() {
+const double *CExpNet::pcC() {
 	return (const double*)m_pcC;
 }
 
-const double *CMixNet::qc() {
+const double *CExpNet::qc() {
 	return (const double*)m_qc;
 }
 
-const double *CMixNet::qcC() {
+const double *CExpNet::qcC() {
 	return (const double*)m_qcC;
 }
 
-int CMixNet::pc_size() {
+int CExpNet::pc_size() {
 	if(m_curNode >= 0 && m_curNode < m_numNodes && m_numCategories)
 		return m_numCategories[m_curNode];
 	return 0;
 }
 
-int CMixNet::pcC_size() {
+int CExpNet::pcC_size() {
 	if(m_curNode >= 0 && m_curNode < m_numNodes && m_parCatSetSize > 0)
 		return m_parCatSetSize;
 	return 0;
 }
 
 
-void CMixNet::_release() {
+void CExpNet::_release() {
 	int i;
 
 	if(m_pCatnetSamples)
@@ -136,30 +158,34 @@ void CMixNet::_release() {
 	m_pCatnetSamples = 0; 
 	m_nCatnetSamples = 0;
 
-	if(m_betas) { 
+	if(m_lambdas) { 
 		for (i = 0; i < m_numNodes; i++) {
-			if(m_betas[i])
-				CATNET_FREE(m_betas[i]);
-			m_betas[i] = 0;
+			if(m_lambdas[i])
+				CATNET_FREE(m_lambdas[i]);
+			m_lambdas[i] = 0;
 		}
-		CATNET_FREE(m_betas);
-		m_betas = 0;
+		CATNET_FREE(m_lambdas);
+		m_lambdas = 0;
 	}
-	if(m_sigmas) {
-		CATNET_FREE(m_sigmas);
-		m_sigmas = 0; 
+	if(m_loglambdas) { 
+		for (i = 0; i < m_numNodes; i++) {
+			if(m_loglambdas[i])
+				CATNET_FREE(m_loglambdas[i]);
+			m_loglambdas[i] = 0;
+		}
+		CATNET_FREE(m_loglambdas);
+		m_loglambdas = 0;
 	}
-
 	if(m_nodeLoglik)
 		CATNET_FREE(m_nodeLoglik);
 	m_nodeLoglik = 0;
 
 	release_pqcC();
-	// First release CMixNet's resources then its parents CATNET
+	// First release CExpNet's resources then its parents CATNET
 	CATNET<char, MAX_NODE_NAME, double>::_release();
 }
 
-void CMixNet::release_pqcC() {
+void CExpNet::release_pqcC() {
 	if(m_pc)
 		CATNET_FREE(m_pc);
 	m_pc = 0;
@@ -174,10 +200,10 @@ void CMixNet::release_pqcC() {
 	m_qcC = 0;
 }
 
-void CMixNet::_reset() {
+void CExpNet::_reset() {
 	CATNET<char, MAX_NODE_NAME, double>::_reset();
-	m_betas = 0;
-	m_sigmas = 0;
+	m_lambdas = 0;
+	m_loglambdas = 0;
 	m_curNode =0;
 	m_pc = m_pcC = 0;
 	m_qc = m_qcC = 0;
@@ -187,7 +213,7 @@ void CMixNet::_reset() {
 	m_nCatnetSamples = 0;
 }
 
-CMixNet& CMixNet::operator =(const CMixNet &cnet) {
+CExpNet& CExpNet::operator =(const CExpNet &cnet) {
 
 	CATNET<char, MAX_NODE_NAME, double> ::init(
 			(int)cnet.m_numNodes, (int)cnet.m_maxParents, (int)cnet.m_maxCategories,
@@ -200,24 +226,32 @@ CMixNet& CMixNet::operator =(const CMixNet &cnet) {
 		return *this;
 
 	int i;
-	m_betas = (double**)CATNET_MALLOC(m_numNodes*sizeof(double*));
-	m_sigmas = (double*)CATNET_MALLOC(m_numNodes*sizeof(double));
+	m_lambdas = (double**)CATNET_MALLOC(m_numNodes*sizeof(double*));
+	m_loglambdas = (double**)CATNET_MALLOC(m_numNodes*sizeof(double*));
 	m_nodeLoglik = (double*)CATNET_MALLOC(m_numNodes*sizeof(double));
 	for (i = 0; i < m_numNodes; i++) {
-		m_betas[i] = 0;
-		if(m_numCategories[i] > 0)
-			m_betas[i] = (double*)CATNET_MALLOC(m_numCategories[i]*sizeof(double));
+		m_lambdas[i] = 0;
+		if(m_numCategories[i] > 0) {
+			m_lambdas[i] = (double*)CATNET_MALLOC(m_numCategories[i]*sizeof(double));
+			m_loglambdas[i] = (double*)CATNET_MALLOC(2*m_numCategories[i]*sizeof(double));
+		}
 		else
 			continue;
-		if(cnet.m_betas && cnet.m_betas[i])
-			memcpy(m_betas[i], cnet.m_betas[i], m_numCategories[i]*sizeof(double));
+		if(cnet.m_lambdas && cnet.m_lambdas[i])
+			memcpy(m_lambdas[i], cnet.m_lambdas[i], m_numCategories[i]*sizeof(double));
 		else
-			memset(m_betas[i], 0, m_numCategories[i]*sizeof(double));
+			memset(m_lambdas[i], 0, m_numCategories[i]*sizeof(double));
+		for(int c = 0; c < m_numCategories[i]; c++) {
+			if(m_lambdas[i][c] > 0) {
+				m_loglambdas[i][c] = log((double)m_lambdas[i][c]);
+				m_loglambdas[i][m_numCategories[i]+c] = 1/(double)m_lambdas[i][c];
+			}
+			else {
+				m_loglambdas[i][c] = 0;
+				m_loglambdas[i][m_numCategories[i]+c] = 0;
+			}
+		}
 	}
-	if(cnet.m_sigmas)
-		memcpy(m_sigmas, cnet.m_sigmas, m_numNodes*sizeof(double));
-	else
-		memset(m_sigmas, 0, m_numNodes*sizeof(double));
 	if(cnet.m_nodeLoglik)
 		memcpy(m_nodeLoglik, cnet.m_nodeLoglik, m_numNodes*sizeof(double));
 	else
@@ -226,16 +260,16 @@ CMixNet& CMixNet::operator =(const CMixNet &cnet) {
 	return *this;
 }
 
-double CMixNet::setNodeLoglik(int nnode, double lik) {
+double CExpNet::setNodeLoglik(int nnode, double lik) {
 	m_nodeLoglik[nnode] = lik;
 	return m_nodeLoglik[nnode];
 }
 
-double CMixNet::getNodeLoglik(int nnode) {
+double CExpNet::getNodeLoglik(int nnode) {
 	return m_nodeLoglik[nnode];
 }
 	
-double CMixNet::loglik() {
+double CExpNet::loglik() {
 	int i;
 	if(!m_nodeLoglik)
 		return 0;
@@ -245,15 +279,20 @@ double CMixNet::loglik() {
 	return m_loglik;
 }
 
-double CMixNet::estimateParameters(int nnode, double *psamples, int nsamples, 
+double CExpNet::estimateParameters(int nnode, double *psamples, int nsamples, 
 					double *pBetas, double *pSigma) {
-	double ftemp, fsum, fBetaSigmaLoglik;
+	double ftemp, fsum;
 	int ic, j, c_setSize;
+	double *plogbeta;
 
 	if(m_curNode != nnode)
 		return -FLT_MAX;
 
 	c_setSize = m_numCategories[nnode];
+	plogbeta = (double*)CATNET_MALLOC(2*c_setSize*sizeof(double));
+	if(!plogbeta)
+		return -FLT_MAX;
+
 	for(ic = 0; ic < c_setSize; ic++) {
 		ftemp = 0;
 		fsum = 0;
@@ -265,36 +304,39 @@ double CMixNet::estimateParameters(int nnode, double *psamples, int nsamples,
 			/* update only if possible, don't put 0, remember the last good value instead */
 			pBetas[ic] = ftemp / fsum;
 		}
-		//printf("fsum = %f, pBetasNext[%d][%d] = %f\n", fsum, nnode, ic, pBetasNext[nnode][ic]);
+	}
+
+	for(ic = 0; ic < c_setSize; ic++) {
+		if(pBetas[ic] > 0) {
+			plogbeta[ic] = log(pBetas[ic]);
+			plogbeta[c_setSize+ic] = 1/pBetas[ic];
+		}
+		else {
+			plogbeta[ic] = 0;
+			plogbeta[c_setSize+ic] = 0;
+		}
 	}
 
 	fsum = 0;
-	for(ic = 0; ic < c_setSize; ic++) {
-		for(j = 0; j < nsamples; j++) {
-			ftemp = psamples[j * m_numNodes + nnode] - pBetas[ic];
-			ftemp = ftemp * ftemp;
-			fsum += m_qc[j*c_setSize + ic] * ftemp;
+	for(j = 0; j < nsamples; j++) {
+		for(ic = 0; ic < c_setSize; ic++) {		
+			ftemp = psamples[j * m_numNodes + nnode]*plogbeta[c_setSize+ic] + plogbeta[ic];
+			fsum -= m_qc[j*c_setSize + ic] * ftemp;
 		}
 	}
+
+	CATNET_FREE(plogbeta);
 	*pSigma = 0;
-	if(fsum > 0) 
-		*pSigma = fsum / nsamples;
-	//else printf("fsum == 0\n");
-	if(*pSigma > 0)
-		fBetaSigmaLoglik = -0.5*(log(PI2**pSigma) + 1)*nsamples;
-	else 
-		fBetaSigmaLoglik = FLT_MAX;
-	//printf("node = %d, fsum = %f, fBetaSigmaLoglik = %f, sigma = %f\n", nnode, fsum, fBetaSigmaLoglik, *pSigma);
-	return fBetaSigmaLoglik;
+
+	return fsum;
 }
 
-int CMixNet::findNodeMarginalProb(int nnode, double *psamples, int nsamples) {
+int CExpNet::findNodeMarginalProb(int nnode, double *psamples, int nsamples) {
 
 	int res, j, ic, numcats;
-	double sigma2, fdiff, fsum, *paux;
+	double fsum, fmax, *paux;
 
-	if(nnode < 0 || nnode >= m_numNodes || !m_sigmas || !m_betas || 
-		!psamples || nsamples < 1)
+	if(nnode < 0 || nnode >= m_numNodes || !m_lambdas || !psamples || nsamples < 1)
 		return ERR_CATNET_PARAM;
 
 	if(m_pc) 
@@ -306,18 +348,18 @@ int CMixNet::findNodeMarginalProb(int nnode, double *psamples, int nsamples) {
 
 	m_curNode = nnode;
 
-	sigma2 = FLT_MAX;
-	if(m_sigmas[nnode] > 0)
-		sigma2 =  1 / (2*m_sigmas[nnode]);
 	numcats = m_numCategories[nnode];
 
 	m_pc = (double*)CATNET_MALLOC(numcats*sizeof(double));
+	if(!m_pc)
+		return ERR_CATNET_MEM;
+	memset(m_pc, 0, numcats*sizeof(double));
 
 	if(!m_pCatnetSamples || m_nCatnetSamples < 1) {
 		res = marginalProb(nnode);
 		if(res != ERR_CATNET_OK)
 			return res;
-		for(ic = 0; ic < numcats; ic++) 
+		for(ic = 0; ic < numcats; ic++)
 			m_pc[ic] = getCatProb(ic);
 	}
 	else {
@@ -332,38 +374,47 @@ int CMixNet::findNodeMarginalProb(int nnode, double *psamples, int nsamples) {
 	}
 
 	m_qc = (double*)CATNET_MALLOC(numcats*nsamples*sizeof(double));
+	if(!m_qc)
+		return ERR_CATNET_MEM;
+	memset(m_qc, 0, numcats*nsamples*sizeof(double));
+
 	paux = (double*)CATNET_MALLOC(numcats*sizeof(double));
 	for (j = 0; j < nsamples; j++) {
+		fmax = -FLT_MAX;
+		for(ic = 0; ic < numcats; ic++) {
+			paux[ic] = - psamples[j * m_numNodes + nnode] * m_loglambdas[nnode][numcats+ic] - m_loglambdas[nnode][ic];
+			if(fmax < paux[ic])
+				fmax = paux[ic];
+		}
 		fsum = 0;
 		for(ic = 0; ic < numcats; ic++) {
-			fdiff = psamples[j * m_numNodes + nnode] - m_betas[nnode][ic];
-			paux[ic] = m_pc[ic]*exp(-sigma2*fdiff*fdiff); 
+			paux[ic] = m_pc[ic]*exp(paux[ic] - fmax); 
 			fsum += paux[ic];
 		}
-		if(fsum > 0) 
+		if(fsum > 0) {
 			fsum = 1/fsum;
-		else
-			fsum = FLT_MAX;
-		for(ic = 0; ic < numcats; ic++) {
-			m_qc[j*numcats + ic] = fsum*paux[ic];
+			for(ic = 0; ic < numcats; ic++) 
+				m_qc[j*numcats + ic] = fsum*paux[ic];
+		}
+		else {
+			fsum = 1/numcats;
+			for(ic = 0; ic < numcats; ic++) 
+				m_qc[j*numcats + ic] = m_pc[ic];//fsum;
 		}
 	}
 	CATNET_FREE(paux);
-	paux = 0;
 
 	return ERR_CATNET_OK;
 }
 
 
-int CMixNet::findNodeJointProb(int nnode, int *parnodes, int numpars, double *psamples, int nsamples) {
+int CExpNet::findNodeJointProb(int nnode, int *parnodes, int numpars, double *psamples, int nsamples) {
 
 	int res, i, j, ic, icc;
 	int *pnodes, numnodes, *pcats, numcats;
-	double *psigma2, fdiff, fdiffsum, fsum, *paux;
+	double fsum, fdiffsum, fmax, *paux;
 
-//printf("CMixNet::parentSetProb %d, %d, %p, %d\n", nnode, numpars, psamples, nsamples);
-
-	if(nnode < 0 || nnode >= m_numNodes || !m_sigmas || !m_betas || 
+	if(nnode < 0 || nnode >= m_numNodes || !m_lambdas || 
 		!psamples || nsamples < 1)
 		return ERR_CATNET_PARAM;
 		
@@ -375,11 +426,6 @@ int CMixNet::findNodeJointProb(int nnode, int *parnodes, int numpars, double *ps
 	memcpy(pnodes, parnodes, numpars*sizeof(int));
 	pnodes[numpars] = nnode;
 	numnodes = numpars + 1;
-
-//printf("pnodes = ");
-//for(i = 0; i < numnodes; i++)
-//printf("%d ", pnodes[i]);
-//printf("\n");
 
 	if(m_pcC) 
 		CATNET_FREE(m_pcC);
@@ -394,23 +440,18 @@ int CMixNet::findNodeJointProb(int nnode, int *parnodes, int numpars, double *ps
 
 	// at this point m_nBlockSizes == numnodes and m_pBlockSizes are filled
 	m_parCatSetSize = 1;
-	for(i = 0; i < numnodes; i++) {
+	for(i = 0; i < numnodes; i++) 
 		m_parCatSetSize *= m_numCategories[pnodes[i]];
-	}
-
-	psigma2 = (double*)CATNET_MALLOC(numnodes*sizeof(double));
-	memset(psigma2, 0, numnodes*sizeof(double));
-	for(i = 0; i < numnodes; i++) {
-		if(m_sigmas[pnodes[i]] > 0)
-			psigma2[i] = 1 / (2*m_sigmas[pnodes[i]]);
-		else
-			psigma2[i] = FLT_MAX;
-	}
 
 	paux = (double*)CATNET_MALLOC(m_parCatSetSize*sizeof(double));
 	pcats = (int*)CATNET_MALLOC(m_parCatSetSize*numnodes*sizeof(int));
 	m_pcC = (double*)CATNET_MALLOC(m_parCatSetSize*sizeof(double));
 	m_qcC = (double*)CATNET_MALLOC(m_parCatSetSize*nsamples*sizeof(double));
+	if(!paux || !m_pcC || !m_qcC)
+		return ERR_CATNET_MEM;
+
+	memset(m_pcC, 0, m_parCatSetSize*sizeof(double));
+	memset(m_qcC, 0, m_parCatSetSize*nsamples*sizeof(double));
 
 	if(!m_pCatnetSamples || m_nCatnetSamples < 1) {
 		// find the exact joint probability for small sets
@@ -437,18 +478,9 @@ int CMixNet::findNodeJointProb(int nnode, int *parnodes, int numpars, double *ps
 		}
 	}
 	else {
-		if(!m_pBlockSizes || m_nBlockSizes < numpars) {
-			if(m_pBlockSizes)
-				CATNET_FREE(m_pBlockSizes);
-			m_nBlockSizes = numpars;
-			m_pBlockSizes = (int*) CATNET_MALLOC(m_nBlockSizes * sizeof(int));
-		}
-
 		m_pBlockSizes[numnodes - 1] = 1;
-		for (i = numnodes - 2; i >= 0; i--) {
+		for (i = numnodes - 2; i >= 0; i--)
 			m_pBlockSizes[i] = m_pBlockSizes[i + 1] * m_numCategories[pnodes[i + 1]];
-			
-		}
 
 		memset(m_pcC, 0, m_parCatSetSize*sizeof(double));
 
@@ -474,29 +506,41 @@ int CMixNet::findNodeJointProb(int nnode, int *parnodes, int numpars, double *ps
 	}
 
 	for (j = 0; j < nsamples; j++) {
-		fsum = 0;
+		fmax = -FLT_MAX;
 		for(ic = 0; ic < m_parCatSetSize; ic++) {
-			// a blunder: only one beta per nnode
-			// would be nice to have m_betas[nnode][pcats[ic]]
-			//fdiff = psamples[j * m_numNodes + nnode] - m_betas[nnode][pcats[numnodes-1]];
-			// The way to GO
 			fdiffsum = 0;
 			for(i = 0; i < numnodes; i++) {
-				fdiff = psamples[j * m_numNodes + pnodes[i]] - m_betas[pnodes[i]][pcats[ic * numnodes + i]];
-				fdiffsum += psigma2[i]*fdiff*fdiff;
+				fdiffsum += (
+				psamples[j * m_numNodes + pnodes[i]]
+ * 
+				m_loglambdas[pnodes[i]][m_numCategories[pnodes[i]]+pcats[ic * numnodes + i]] 
+ + 
+				m_loglambdas[pnodes[i]][pcats[ic * numnodes + i]]
+				);
 			}
-			paux[ic] = m_pcC[ic]*exp(-fdiffsum);
+			paux[ic] = -fdiffsum;
+			if(fmax < paux[ic])
+				fmax = paux[ic];	
+		}
+
+		fsum = 0;
+		for(ic = 0; ic < m_parCatSetSize; ic++) {
+			paux[ic] = m_pcC[ic]*exp(paux[ic] - fmax);
 			fsum += paux[ic];
 		}
-		if(fsum > 0) 
+		if(fsum > 0) {
 			fsum = 1/fsum;
-		else
-			fsum = FLT_MAX;
-		for(ic = 0; ic < m_parCatSetSize; ic++)
-			m_qcC[j*m_parCatSetSize + ic] = fsum*paux[ic];
+			for(ic = 0; ic < m_parCatSetSize; ic++) 
+				m_qcC[j*m_parCatSetSize + ic] = fsum*paux[ic];
+		}
+		else {
+			fsum = 1/numcats;
+			for(ic = 0; ic < m_parCatSetSize; ic++)
+				m_qc[j*numcats + ic] = m_pcC[ic];//fsum;
+		}
 	}
+
 	CATNET_FREE(pnodes);
-	CATNET_FREE(psigma2);
 	CATNET_FREE(pcats);
 	CATNET_FREE(paux);
 
@@ -523,13 +567,13 @@ int CMixNet::findNodeJointProb(int nnode, int *parnodes, int numpars, double *ps
 	return ERR_CATNET_OK;
 }
 
-int CMixNet::findParentsJointProb(int *parnodes, int numpars, double *psamples, int nsamples) {
+int CExpNet::findParentsJointProb(int *parnodes, int numpars, double *psamples, int nsamples) {
 
-	int res, i, j, ic;
+	int res, i, j, ic, k;
 	int *pcats;
-	double *psigma2, fdiff, fdiffsum, fsum, *paux;
+	double fdiffsum, fsum, *paux;
 
-	if(!m_sigmas || !m_betas || !psamples || nsamples < 1)
+	if(!m_lambdas || !psamples || nsamples < 1)
 		return ERR_CATNET_PARAM;
 	if(!parnodes || !numpars)
 		return ERR_CATNET_PARAM;
@@ -543,6 +587,14 @@ int CMixNet::findParentsJointProb(int *parnodes, int numpars, double *psamples, 
 	m_parCatSetSize = 1;
 	for(i = 0; i < numpars; i++)
 		m_parCatSetSize *= m_numCategories[parnodes[i]];
+
+	paux = (double*)CATNET_MALLOC(m_parCatSetSize*sizeof(double));
+	pcats = (int*)CATNET_MALLOC(numpars*sizeof(int));
+	m_pcC = (double*)CATNET_MALLOC(m_parCatSetSize*sizeof(double));
+	m_qcC = (double*)CATNET_MALLOC(m_parCatSetSize*nsamples*sizeof(double));
+
+	if(!paux || !pcats || !m_pcC || !m_qcC)
+		return ERR_CATNET_MEM;
 
 	m_pcC = (double*)CATNET_MALLOC(m_parCatSetSize*sizeof(double));
 	pcats = (int*)CATNET_MALLOC(m_parCatSetSize*numpars*sizeof(int));
@@ -587,12 +639,15 @@ int CMixNet::findParentsJointProb(int *parnodes, int numpars, double *psamples, 
 			
 		}
 
+		memset(m_pcC, 0, m_parCatSetSize*sizeof(double));
+
 		for(j = 0; j < m_nCatnetSamples; j++) {
 			ic = 0;
 			for (i = 0; i < numpars; i++)
 				ic += (m_pBlockSizes[i] * m_pCatnetSamples[j * m_numNodes + parnodes[i]]);
 			m_pcC[ic] += 1;
 		}
+
 		fsum = 1/(double)m_nCatnetSamples;
 		for(ic = 0; ic < m_parCatSetSize; ic++)
 			m_pcC[ic] *= fsum;
@@ -606,16 +661,7 @@ int CMixNet::findParentsJointProb(int *parnodes, int numpars, double *psamples, 
 			}
 		}
 	}
-
-	psigma2 = (double*)CATNET_MALLOC(numpars*sizeof(double));
-	memset(psigma2, 0, numpars*sizeof(double));
-	for(i = 0; i < numpars; i++) {
-		if(m_sigmas[parnodes[i]] > 0)
-			psigma2[i] = 1 / (2*m_sigmas[parnodes[i]]);
-		else
-			psigma2[i] = FLT_MAX;
-	}
-
+	
 	paux = (double*)CATNET_MALLOC(m_parCatSetSize*sizeof(double));
 	m_qcC = (double*)CATNET_MALLOC(m_parCatSetSize*nsamples*sizeof(double));
 	if(!m_qcC || !paux)
@@ -624,30 +670,31 @@ int CMixNet::findParentsJointProb(int *parnodes, int numpars, double *psamples, 
 	for (j = 0; j < nsamples; j++) {
 		fsum = 0;
 		for(ic = 0; ic < m_parCatSetSize; ic++) {
+			// determine the category indices
+			k = ic;
+			for(i = 0; i < numpars; i++) {
+				pcats[i] = (int)(k/m_pBlockSizes[i]);
+				k -= pcats[i] * m_pBlockSizes[i];
+			}
 			fdiffsum = 0;
 			for(i = 0; i < numpars; i++) {
-				fdiff = psamples[j * m_numNodes + parnodes[i]] - m_betas[parnodes[i]][pcats[ic * numpars + i]];
-				fdiffsum += psigma2[i]*fdiff*fdiff;
+				fdiffsum -= (psamples[j * m_numNodes + parnodes[i]] * m_loglambdas[parnodes[i]][m_numCategories[parnodes[i]]+pcats[i]] + m_loglambdas[parnodes[i]][pcats[i]]);
 			}
-			paux[ic] = m_pcC[ic]*exp(-fdiffsum);
+			paux[ic] = m_pcC[ic]*exp(fdiffsum);
 			fsum += paux[ic];
 		}
-		if(fsum > 0) 
-			fsum = 1/fsum;
-		else
-			fsum = FLT_MAX;
+		if(fsum > 0) fsum = 1/fsum;
 		for(ic = 0; ic < m_parCatSetSize; ic++)
 			m_qcC[j*m_parCatSetSize + ic] = fsum*paux[ic];
 	}
 
-	CATNET_FREE(psigma2);
 	CATNET_FREE(pcats);
 	CATNET_FREE(paux);
 
 	return ERR_CATNET_OK;
 }
 
-int* CMixNet::catnetSample(int nsamples) {
+int* CExpNet::catnetSample(int nsamples) {
 
 	int *porder;
 	int i, j, k, nnode, *pnodepars, *pnodesample;
@@ -657,10 +704,8 @@ int* CMixNet::catnetSample(int nsamples) {
 	if(nsamples < 1 || m_numNodes < 1)
 		return 0;
 	porder = getOrder();
-	if(!porder) {
-		warning("porder=0");
+	if(!porder) 
 		return 0;
-	}
 
 	if(m_pCatnetSamples)
 		CATNET_FREE(m_pCatnetSamples);
@@ -699,14 +744,14 @@ int* CMixNet::catnetSample(int nsamples) {
 	return m_pCatnetSamples;
 }
 
-int CMixNet::sample(double *psamples, int nsamples) {
+int CExpNet::sample(double *psamples, int nsamples) {
 
 	int *porder;
 	int i, j, k, nnode, *pnodepars, *pnodesample;
 	double u, v, *pnodeprob;
 	PROB_LIST<double>* pProbList; 
 
-	if(!m_sigmas || !m_betas)
+	if(!m_lambdas)
 		return ERR_CATNET_INIT;
 	
 	if(!psamples || nsamples < 1)
@@ -747,27 +792,26 @@ int CMixNet::sample(double *psamples, int nsamples) {
 
 	for(k = 0; k < m_numNodes; k++) {
 		nnode = porder[k];
-		u = sqrt(m_sigmas[nnode]);
 		for (j = 0; j < nsamples; j++) {
-			v = _gen_std_normal_var<double>();
+			u = ((double)rand() / (double)RAND_MAX);
 			i = (int)psamples[j * m_numNodes + nnode];
-			psamples[j * m_numNodes + nnode] = m_betas[nnode][i] + v*u;
+			psamples[j * m_numNodes + nnode] = -m_lambdas[nnode][i] * log(u);
 		}
 	}
-	
+
 	CATNET_FREE(porder);
 
 	return ERR_CATNET_OK;
 }
 
-int CMixNet::predict(double *psamples, int nsamples) {
+int CExpNet::predict(double *psamples, int nsamples) {
 
 	int *porder;
-	int j, k, ic, icC, nnode, cC_setSize;
+	int j, k, ic, icC, nnode, imax, cC_setSize;
 	double fsum, faux, *pnodeprob;
 	PROB_LIST<double>* pProbList;
 
-	if(!m_sigmas || !m_betas)
+	if(!m_lambdas)
 		return ERR_CATNET_INIT;
 	
 	if(!psamples || nsamples < 1)
@@ -789,7 +833,7 @@ int CMixNet::predict(double *psamples, int nsamples) {
 					continue;
 				fsum = 0;
 				for(ic = 0; ic < m_numCategories[nnode]; ic++) {
-					fsum += (m_betas[nnode][ic] * pnodeprob[ic]);
+					fsum += (m_lambdas[nnode][ic] * pnodeprob[ic]);
 				}
 				psamples[j*m_numNodes + nnode] = fsum;
 			}
@@ -804,6 +848,7 @@ int CMixNet::predict(double *psamples, int nsamples) {
 			// predict only NA ones
 			if(!isnan(psamples[j*m_numNodes + nnode]))
 				continue;
+if(1) {
 			fsum = 0;
 			for(ic = 0; ic < m_numCategories[nnode]; ic++) {
 				faux = 0;
@@ -811,9 +856,26 @@ int CMixNet::predict(double *psamples, int nsamples) {
 					faux += pnodeprob[icC*m_numCategories[nnode] + ic] * 
 						m_qcC[j*cC_setSize + icC];
 				}
-				fsum += m_betas[nnode][ic] * faux;
+				fsum += m_lambdas[nnode][ic] * faux;
 			}
 			psamples[j*m_numNodes + nnode] = fsum;
+}
+else {
+			imax = 0;
+			fsum = -FLT_MAX;
+			for(ic = 0; ic < m_numCategories[nnode]; ic++) {
+				faux = 0;
+				for(icC = 0; icC < cC_setSize; icC++) {
+					faux += pnodeprob[ic*m_numCategories[nnode] + ic] * 
+						m_qcC[j*cC_setSize + icC];
+				}
+				if(fsum < faux) {
+					fsum = faux;
+					imax = ic;
+				}
+			}
+			psamples[j*m_numNodes + nnode] = m_lambdas[nnode][imax];
+}
 		}
 	}
 
@@ -822,14 +884,14 @@ int CMixNet::predict(double *psamples, int nsamples) {
 	return ERR_CATNET_OK;
 }
 
-double CMixNet::findLogNodeLikelihood(int nnode, double *psamples, int nsamples) {
+double CExpNet::findLogNodeLikelihood(int nnode, double *psamples, int nsamples) {
 	
-	double faux, fsum, fsumsum, fLogLik, fconst1, fconst2;
+	double faux, fsum, fsumsum, fLogLik;
 	int j, cC_setSize, ic, icC;
 	double *pnodeprob;
 	PROB_LIST<double>* pProbList;
-	
-	if(!m_sigmas || !m_betas || nnode < 0 || nnode >= m_numNodes || m_sigmas[nnode] <= 0)
+
+	if(!m_lambdas || nnode < 0 || nnode >= m_numNodes || m_lambdas[nnode] <= 0)
 		return -FLT_MAX;
 	
 	if(!psamples || nsamples < 1)
@@ -838,12 +900,6 @@ double CMixNet::findLogNodeLikelihood(int nnode, double *psamples, int nsamples)
 	pProbList = (PROB_LIST<double>*)getNodeProb(nnode);
 	pnodeprob = pProbList->pProbs;
 
-	//printf("prob %d: ", nnode);
-	//for(ic = 0; ic < pProbList->nProbSize; ic++) {
-		//printf(" %f ", pnodeprob[ic]);
-	//}
-	//printf("\n");
-			
 	cC_setSize = 0;
 	if(m_numParents[nnode] > 0) {
 		if(findParentsJointProb(m_parents[nnode], m_numParents[nnode], psamples, nsamples) != ERR_CATNET_OK)
@@ -852,44 +908,36 @@ double CMixNet::findLogNodeLikelihood(int nnode, double *psamples, int nsamples)
 		cC_setSize = pcC_size();
 	}
 
-	fconst1 = -0.5 * log(PI2*m_sigmas[nnode]);
-	fconst2 = -0.5 / m_sigmas[nnode];
-
 	fLogLik = 0;
 	for(j = 0; j < nsamples; j++) {
 		fsumsum = 0;
 		for(ic = 0; ic < m_numCategories[nnode]; ic++) {
-			faux = psamples[j * m_numNodes + nnode] - m_betas[nnode][ic];
-			faux = fconst2 * faux * faux;
+			faux = -psamples[j * m_numNodes + nnode]*m_loglambdas[nnode][m_numCategories[nnode]+ic] - m_loglambdas[nnode][ic];
 			if(m_numParents[nnode] > 0) {
 				fsum = 0;
 				for(icC = 0; icC < cC_setSize; icC++) {
 					fsum += pnodeprob[icC*m_numCategories[nnode] + ic] * 
 						m_qcC[j*cC_setSize + icC];
-					//printf("      %f, %f\n", pnodeprob[icC*m_numCategories[nnode] + ic], m_qcC[j*cC_setSize + icC]);
 				}
 			}
 			else
 				fsum = pnodeprob[ic];
-			//printf("faux = %f, fsum = %f\n", faux, fsum);
 			fsumsum += exp(faux) * fsum;
 		}
 		fLogLik += log(fsumsum);
 	}
-	fLogLik += nsamples*fconst1;
-	//printf("nnode = %d:  fLogLik = %f\n", nnode, fLogLik);
 	return fLogLik;
 }
 
 
-double CMixNet::findNodeLoglik(int nnode, double *psamples, int nsamples) {
+double CExpNet::findNodeLoglik(int nnode, double *psamples, int nsamples) {
 	
-	double faux, fLogLik, fconst1, fconst2;
+	double faux, fLogLik;
 	int j, cC_setSize, ic, icC, iC;
 	double *pnodeprob;
 	PROB_LIST<double>* pProbList;
 	
-	if(!m_sigmas || !m_betas || nnode < 0 || nnode >= m_numNodes || m_sigmas[nnode] <= 0)
+	if(!m_lambdas || nnode < 0 || nnode >= m_numNodes || m_lambdas[nnode] <= 0)
 		return -FLT_MAX;
 	
 	if(!psamples || nsamples < 1)
@@ -897,10 +945,7 @@ double CMixNet::findNodeLoglik(int nnode, double *psamples, int nsamples) {
 
 	pProbList = (PROB_LIST<double>*)getNodeProb(nnode);
 	pnodeprob = pProbList->pProbs;
-	
-	fconst1 = -0.5 * log(PI2*m_sigmas[nnode]);
-	fconst2 = -0.5 / m_sigmas[nnode];
-		
+				
 	cC_setSize = 0;
 	if(m_numParents[nnode] > 0) {
 		if(findNodeJointProb(nnode, m_parents[nnode], m_numParents[nnode], psamples, nsamples) != ERR_CATNET_OK)
@@ -918,8 +963,7 @@ double CMixNet::findNodeLoglik(int nnode, double *psamples, int nsamples) {
 			iC = 0;
 			for(icC = 0; icC < cC_setSize; icC += m_numCategories[nnode]) {
 				for(ic = 0; ic < m_numCategories[nnode]; ic++) {
-					faux = psamples[j * m_numNodes + nnode] - m_betas[nnode][ic];
-					faux = fconst2 * faux * faux;
+					faux = -psamples[j * m_numNodes + nnode]*m_loglambdas[nnode][m_numCategories[nnode]+ic] - m_loglambdas[nnode][ic];
 					if(pnodeprob[iC*m_numCategories[nnode] + ic] > 0)
 						fLogLik += m_qcC[j*cC_setSize + icC + ic] * (faux + log(pnodeprob[iC*m_numCategories[nnode] + ic]));
 					else
@@ -932,8 +976,7 @@ double CMixNet::findNodeLoglik(int nnode, double *psamples, int nsamples) {
 	else {
 		for(j = 0; j < nsamples; j++) {
 			for(ic = 0; ic < m_numCategories[nnode]; ic++) {
-				faux = psamples[j * m_numNodes + nnode] - m_betas[nnode][ic];
-				faux = fconst2 * faux * faux;
+				faux = -psamples[j * m_numNodes + nnode]*m_loglambdas[nnode][m_numCategories[nnode]+ic] - m_loglambdas[nnode][ic];
 				if(pnodeprob[ic] > 0)
 					fLogLik += m_qc[j*m_numCategories[nnode] + ic] * (faux + log(pnodeprob[ic]));
 				else
@@ -941,9 +984,6 @@ double CMixNet::findNodeLoglik(int nnode, double *psamples, int nsamples) {
 			}
 		}
 	}
-	
-	fLogLik += nsamples*fconst1;
-	//printf("nnode = %d:  fLogLik = %f\n", nnode, fLogLik);
 	return fLogLik;
 }
 

@@ -19,7 +19,7 @@ useDynLib(mugnet)
 exportClasses(mgNetwork)
 
 exportMethods(
-	mgBeta, mgSigma, mgPredict, mgSamples, mgFromCatnet, mgNodeLoglik, cnLoglik,  cnReorderNodes
+	mgBeta, mgSigma, mgPredict, mgSamples, mgNodeLoglik, mgLoglik,  mgReorderNodes
 )
 
 export(
