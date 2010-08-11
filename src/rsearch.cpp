@@ -45,7 +45,7 @@ SEXP RMixSearch::estimateNetworks(SEXP rSamples, SEXP rPerturbations,
 		numnets, inet, netSelection, echo;
 	int maxCategories, *pNodeCategories;
  	int *pRperturbations, *pPerturbations, **parentsPool, **fixedParentsPool, *pRorder, *pPool;
-	double *pRsamples, *pSamples, **pBetas, *pSigmas, *pNodeSamples, range, stopDelta, loglik;
+	double *pRsamples, *pSamples, **pBetas, *pSigmas, *pNodeSamples, range, stopDelta;
 	char model[256];
 
 	SEXP dim, rparpool, cnetlist, cnetnode;
@@ -369,6 +369,7 @@ SEXP RMixSearch::estimateNetworks(SEXP rSamples, SEXP rPerturbations,
 	PROTECT(cnetlist = allocVector(VECSXP, numnets));
 
 	inet = 0;
+	cnetnode = 0;
 	for(i = 0; i < m_nNets; i++) {
 		if(!m_pCurNets[i])
 			continue;
@@ -378,7 +379,8 @@ SEXP RMixSearch::estimateNetworks(SEXP rSamples, SEXP rPerturbations,
 			PROTECT(cnetnode = ((RPoissonMix*)m_pCurNets[i])->genRmixnet("mgNetwork"));
 		if(!strncmp(model, "Exp", 3)) 
 			PROTECT(cnetnode = ((RExpMix*)m_pCurNets[i])->genRmixnet("mgNetwork"));
-		SET_VECTOR_ELT(cnetlist, inet, cnetnode);
+		if(cnetnode)
+			SET_VECTOR_ELT(cnetlist, inet, cnetnode);
 		UNPROTECT(1);
 		inet++;
 	}

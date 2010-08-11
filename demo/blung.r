@@ -60,8 +60,8 @@ bst1a@meta <- "G1a, AIC"
 ###################################################################
 ## 1-parent saturated
 
-eval.dead <- mgSearchOrder(lung.dead, NULL, 3, NULL, 1, 0, priorOrder, NULL, NULL, emIter=1000, stopDelta=0.001, selectMode=0, model="Gaus", echo=TRUE)
-eval.alive <- mgSearchOrder(lung.alive, NULL, 3, NULL, 1, 0, priorOrder, NULL, NULL, emIter=1000, stopDelta=0.001, selectMode=0, model="Gaus", echo=TRUE)
+eval.dead <- mgSearchOrder(lung.dead, NULL, 3, NULL, 1, 0, priorOrder, NULL, NULL, emIter=10, stopDelta=0.001, selectMode=0, echo=TRUE)
+eval.alive <- mgSearchOrder(lung.alive, NULL, 3, NULL, 1, 0, priorOrder, NULL, NULL, emIter=1000, stopDelta=0.001, selectMode=0, echo=TRUE)
 eval <- eval.dead
 for(i in 1:length(eval@nets)) {
   eval@nets[[i]]@likelihood <- sum(mgNodeLoglik(eval@nets[[i]], 1:eval@numnodes, lung.dead))
@@ -85,8 +85,8 @@ bst2a@meta <- "G2a"
 ###################################################################
 ## 2-parents saturated
 
-eval.dead <- mgSearchOrder(lung.dead, NULL, 3, NULL, 2, 0, priorOrder, NULL, NULL, emIter=1000, stopDelta=0.01, selectMode=0, model="Gaus", echo=TRUE)
-eval.alive <- mgSearchOrder(lung.alive, NULL, 3, NULL, 2, 0, priorOrder, NULL, NULL, emIter=1000, stopDelta=0.01, selectMode=0, model="Gaus", echo=TRUE)
+eval.dead <- mgSearchOrder(lung.dead, NULL, 3, NULL, 2, 0, priorOrder, NULL, NULL, emIter=1000, stopDelta=0.1, selectMode=0, echo=TRUE)
+eval.alive <- mgSearchOrder(lung.alive, NULL, 3, NULL, 2, 0, priorOrder, NULL, NULL, emIter=1000, stopDelta=0.1, selectMode=0, echo=TRUE)
 eval <- eval.dead
 for(i in 1:length(eval@nets)) {
   eval@nets[[i]]@likelihood <- sum(mgNodeLoglik(eval@nets[[i]], 1:eval@numnodes, lung.dead))

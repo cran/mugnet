@@ -34,7 +34,7 @@ int g_ask_mem_alloc = (1<<30);
 void * CATNET_MALLOC(size_t nsize) { 
 	if(nsize <= 0)
 		return 0;
-	if(nsize > g_ask_mem_alloc) {
+	if(nsize > (unsigned)g_ask_mem_alloc) {
 		printf("A large chunk of memory is about to be allocated, %u. Continue? (y/n) ", (unsigned)nsize);
 		char nch = getchar();
 		//printf("%c,%d, %c\n", nch, (int)nch, 'y');
@@ -44,7 +44,7 @@ void * CATNET_MALLOC(size_t nsize) {
 		// read the 0xa character
 		nch = getchar();
 	}
-	//return malloc(nsize);
+	return malloc(nsize);
 	g_memcounter += nsize;
 	void *pMem = malloc(sizeof(int) + nsize);
 	if(!pMem) {
@@ -63,8 +63,8 @@ void * CATNET_MALLOC(size_t nsize) {
 void CATNET_FREE(void *pMem) {
 	if(!pMem)	
 		return;
-	//free(pMem);
-	//return;
+	free(pMem);
+	return;
 	pMem = (void*)((int*)pMem-1);
 	size_t nsize = *((int*)pMem);
 	g_memcounter -= nsize;	

@@ -459,7 +459,7 @@ int estimate(
 				0, d - fixparsetsize);
 			//if(becho)
 			//	printf("[%d]%d  ", d, ncomblist);
-			printf("nnode = %d, d = %d, ncomblist = %d\n", nnode,  d, ncomblist);
+			//printf("nnode = %d, d = %d, ncomblist = %d\n", nnode,  d, ncomblist);
 			if(fixparsetsize > 0) {
 		        	if(!pcomblist || ncomblist < 1) {
 		        	    	pcomblist = (int**)CATNET_MALLOC(1*sizeof(int*));

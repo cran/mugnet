@@ -44,7 +44,7 @@ SEXP searchOrder(
 	if(!isMatrix(rSamples))
 		error("Samples should be a matrix");
 	if(!isNull(rPerturbations) && !isMatrix(rPerturbations))
-		error("Perturbations should be a vector");
+		error("Perturbations should be a matrix");
 	if(!isInteger(AS_INTEGER(rNodeCategories)))
 		error("NodeCategories should be integer");
 	if(!isVector(AS_INTEGER(rNodeCategories)))
@@ -77,9 +77,9 @@ SEXP searchOrder(
 	
 	delete pengine;
 
-	char str[128];
-	sprintf(str, "Mem Balance  %d\n", (int)g_memcounter);
-	printf(str);
+	//char str[128];
+	//sprintf(str, "Mem Balance  %d\n", (int)g_memcounter);
+	//printf(str);
 
 	return res;
 }

@@ -20,6 +20,8 @@ mgSearchOrder <- function(data, perturbations = NULL,
   asframe <- FALSE
   if(is.data.frame(data)) {
     data <- as.matrix(t(data))
+    if(!is.null(perturbations))
+      perturbations <- as.matrix(t(perturbations))
     asframe <- TRUE
   }
  
