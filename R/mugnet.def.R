@@ -70,7 +70,7 @@ function(object, cnet, betas, sigmas) {
   object@maxCategories <- cnet@maxCategories
   object@probabilities <- cnet@probabilities
 
-  if(is.null(betas)) {
+  if(is.null(betas) || length(betas) != object@numnodes) {
     betas <- vector("list", object@numnodes)
     for(i in 1:object@numnodes) {
       ncats <- length(object@categories[[i]])
@@ -79,6 +79,11 @@ function(object, cnet, betas, sigmas) {
       betas[[i]] <- seq(0, 1, 1/(ncats-1))[1:ncats]
     }
   }
+  else {
+    for(i in 1:object@numnodes)
+      betas[[i]] <- as.numeric(betas[[i]])
+  }
+          
   if(is.null(sigmas)) {
     sigmas <- rep(1, object@numnodes)
     for(i in 1:object@numnodes) {
@@ -112,14 +117,18 @@ function(object, cnet, lambdas) {
   object@maxCategories <- cnet@maxCategories
   object@probabilities <- cnet@probabilities
 
-  if(is.null(lambdas)) {
-    betas <- vector("list", object@numnodes)
+  if(is.null(lambdas) || length(lambdas) != object@numnodes) {
+    lambdas <- vector("list", object@numnodes)
     for(i in 1:object@numnodes) {
       ncats <- length(object@categories[[i]])
       if(ncats < 2)
         stop("A node with less than two categories: ", i)
       lambdas[[i]] <- seq(1, ncats)
     }
+  }
+  else {
+    for(i in 1:object@numnodes)
+      lambdas[[i]] <- as.numeric(lambdas[[i]])
   }
   
   object@betas <- lambdas
@@ -145,14 +154,18 @@ function(object, cnet, lambdas) {
   object@maxCategories <- cnet@maxCategories
   object@probabilities <- cnet@probabilities
 
-  if(is.null(lambdas)) {
-    betas <- vector("list", object@numnodes)
+  if(is.null(lambdas) || length(lambdas) != object@numnodes) {
+    lambdas <- vector("list", object@numnodes)
     for(i in 1:object@numnodes) {
       ncats <- length(object@categories[[i]])
       if(ncats < 2)
         stop("A node with less than two categories: ", i)
       lambdas[[i]] <- seq(1, ncats)
     }
+  }
+  else {
+    for(i in 1:object@numnodes)
+      lambdas[[i]] <- as.numeric(lambdas[[i]])
   }
   
   object@betas <- lambdas

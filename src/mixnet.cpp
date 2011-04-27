@@ -314,7 +314,9 @@ int CMixNet::findNodeMarginalProb(int nnode, double *psamples, int nsamples) {
 	m_pc = (double*)CATNET_MALLOC(numcats*sizeof(double));
 
 	if(!m_pCatnetSamples || m_nCatnetSamples < 1) {
+
 		res = marginalProb(nnode);
+
 		if(res != ERR_CATNET_OK)
 			return res;
 		for(ic = 0; ic < numcats; ic++) 
@@ -689,7 +691,7 @@ int* CMixNet::catnetSample(int nsamples) {
 				if(u <= v)
 					break;
 			}
-			m_pCatnetSamples[j * m_numNodes + nnode] = (double)i;
+			m_pCatnetSamples[j * m_numNodes + nnode] = (int)i;
 		}
 	}
 
@@ -778,6 +780,13 @@ int CMixNet::predict(double *psamples, int nsamples) {
 		return ERR_CATNET_PROC;
 
 	for(k = 0; k < m_numNodes; k++) {
+
+		/* work with the sample distribution of pCurNet if necessary */
+		if(maxParentSet() > 3 || maxCategories()*maxParentSet() > 9 || 
+			m_numNodes*maxCategories()*maxParentSet() > 81) {
+			catnetSample((int)exp(log((double)(maxCategories()))*(1+maxParentSet()))*100);
+		}
+
 		nnode = porder[k];
 		pProbList = (PROB_LIST<double>*)getNodeProb(nnode);
 		pnodeprob = pProbList->pProbs;
@@ -795,7 +804,6 @@ int CMixNet::predict(double *psamples, int nsamples) {
 			}
 			continue;
 		}
- 
 		if(findParentsJointProb(m_parents[nnode], m_numParents[nnode], psamples, nsamples) != ERR_CATNET_OK)
 			continue;
 		cC_setSize = pcC_size();
@@ -815,6 +823,11 @@ int CMixNet::predict(double *psamples, int nsamples) {
 			}
 			psamples[j*m_numNodes + nnode] = fsum;
 		}
+
+		if(m_pCatnetSamples)
+			CATNET_FREE(m_pCatnetSamples);
+		m_nCatnetSamples = 0;
+		m_pCatnetSamples = 0; 
 	}
 
 	CATNET_FREE(porder);

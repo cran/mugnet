@@ -11,7 +11,7 @@ mgSigma(object)
 }
 
 \arguments{
-  \item{object}{a \code{mgNetwork} object}
+\item{object}{a \code{mgNetwork} object}
 }
 
 \details{In the Gaussian mixture model each node has one sigma parameter corresponding to its standard deviation.}

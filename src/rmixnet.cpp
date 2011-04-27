@@ -94,7 +94,7 @@ RMixNet::RMixNet(SEXP cnet) {
 	m_pProbLists = (PROB_LIST<double>**) CATNET_MALLOC(m_numNodes * sizeof(PROB_LIST<double>*));
 	for (i = 0; i < m_numNodes; i++)
 		m_pProbLists[i] = 0;
-	
+
 	for(nnode = 0; nnode < m_numNodes; nnode++) {
 		pf = VECTOR_ELT(rnodes, nnode);
 		m_nodeNames[nnode] = 0;
@@ -168,8 +168,6 @@ RMixNet::RMixNet(SEXP cnet) {
 	}
 
 	UNPROTECT(2);
-
-	//printf("New RMixNet %d, %d, %d\n", m_numNodes, m_maxParents, m_maxCategories);
 }
 
 SEXP RMixNet::genRcatnet(const char * objectName = (const char*)"catNetwork") {

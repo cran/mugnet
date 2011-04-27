@@ -10,7 +10,7 @@
 mgBeta(object)
 }
 \arguments{
-  \item{object}{a \code{mgNetwork} object}
+\item{object}{a \code{mgNetwork} object}
 }
 
 \details{Each node has the number of categories beta values, which in the Gaussian mixture model correspond to the mean values for the node categories.}

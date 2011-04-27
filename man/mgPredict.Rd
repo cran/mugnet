@@ -10,8 +10,8 @@
 mgPredict(object, data)
 }
 \arguments{
- 	\item{object}{a \code{mgNetwork}}
-	\item{data}{a \code{numeric} data}
+\item{object}{a \code{mgNetwork}}
+\item{data}{a \code{numeric} data}
 }
 \details{\code{Data} should be a \code{matrix} or \code{data.frame} of numerical values. Prediction is made for those nodes that are marked as not-available (\code{NA}) in the data and is based on maximum probability criterion.}
 

@@ -132,12 +132,12 @@ int estimate(
 	int *parset, parsetsize, *fixparset, fixparsetsize, *parcats;
 	int *paux, **pcomblist, ncomblist, maxpars, ballow, bfixallow;
 		
-	int nCurNet, nLoopNet;
+	int nCurNet;
 	I_NETPARAMS<t_prob> *pCurNet, *pNewNet, **pCurCatnetList;
 
-	t_prob ftemp, fsum, fsumsum, curSelLoglik, logdiff, bUpdate;
+	t_prob ftemp, fsum, fsumsum, curSelLoglik, logdiff;
 	int c_setSize, cC_setSize, ic, icC;
-	const t_prob *qc, *pcC, *qcC;
+	const t_prob *qc, *qcC;
 
 	t_prob **pBetasNext, *pSigmasNext;
 	t_prob *pNodeBetas, fNodeSigma;
@@ -214,7 +214,6 @@ int estimate(
 
 	/* Main EM Loop */
 	emiter = 0;
-	nLoopNet = 0;
 	while(emiter < emIterations) {
 
 	pCurNet = 0;
@@ -261,7 +260,7 @@ int estimate(
 	curSelComplexity = pCurNet->complexity();
 	curSelLoglik = pCurNet->getLoglik();
 
-	// work with the sample distribution of pCurNet if necessary
+	/* work with a sample distribution of pCurNet in case of high complexity */
 	if(pCurNet->maxParentSet() > 3 || pCurNet->maxCategories()*pCurNet->maxParentSet() > 9 || 
 		numNodes*pCurNet->maxCategories()*pCurNet->maxParentSet() > 81) {
 		k = (int)exp(log((t_prob)(pCurNet->maxCategories()))*(1+pCurNet->maxParentSet())) * 50;
@@ -382,8 +381,6 @@ int estimate(
 		break;
 	}
 
-	bUpdate = 0;
-
 	/* update G_i */
 	for(nnode = 0; nnode < numNodes; nnode++) {
 
@@ -497,7 +494,7 @@ int estimate(
 							 pBetasNext[nnode], &pSigmasNext[nnode]);
 
 				cC_setSize = pCurNet->pcC_size();
-				pcC = pCurNet->pcC();
+				//pcC = pCurNet->pcC();
 				qcC = pCurNet->qcC();
 				pprobs = (t_prob*)CATNET_MALLOC(cC_setSize*sizeof(t_prob));
 
@@ -578,7 +575,6 @@ int estimate(
 						if(pCurCatnetList[complx]->loglik() < fLogLik) {
 							pCurCatnetList[complx]->releaseRef();
 							pCurCatnetList[complx] = pNewNet;
-							bUpdate = 1;
 						}
 						else {
 							pNewNet->releaseRef();

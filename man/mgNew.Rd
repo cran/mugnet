@@ -6,17 +6,17 @@
 \description{Creates a new \code{mgNetwork} with specified nodes, categories, parent sets, probability structure and error model parameters.}
 
 \usage{
-cnet <- mgNew(nodes, cats, parents, probs, model, betas, sigmas)
+mgNew(nodes, cats, parents, probs, model, betas, sigmas)
 }
 
 \arguments{
-	\item{nodes}{a \code{vector} of nodes names}
-	\item{cats}{a \code{list} of node categories}
-	\item{parents}{a \code{list} of node parents}
-	\item{probs}{a \code{list} of probabilities}
-	\item{model}{a \code{character}, mixture model}
-	\item{betas}{a \code{list} of beta parameters}
-	\item{sigmas}{a \code{vector} of sigma parameters}
+\item{nodes}{a \code{vector} of nodes names}
+\item{cats}{a \code{list} of node categories}
+\item{parents}{a \code{list} of node parents}
+\item{probs}{a \code{list} of probabilities}
+\item{model}{a \code{character}, mixture model}
+\item{betas}{a \code{list} of beta parameters}
+\item{sigmas}{a \code{vector} of sigma parameters}
 }
 
 \value{A \code{mgNetwork} object.}

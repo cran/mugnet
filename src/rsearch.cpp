@@ -40,7 +40,7 @@ SEXP RMixSearch::estimateNetworks(SEXP rSamples, SEXP rPerturbations,
 		       SEXP rEmIterations, SEXP rStopDelta, SEXP rEmStartIterations, 
 		       SEXP rNetSelection, SEXP rModel, SEXP rEcho) {
 
-	int res, i, j, k, len, numnodes, numsamples, maxParentSet, 
+	int i, j, k, len, numnodes, numsamples, maxParentSet, 
 		maxComplexity, emIterations, emStartIterations, nnode, 
 		numnets, inet, netSelection, echo;
 	int maxCategories, *pNodeCategories;
@@ -319,7 +319,7 @@ SEXP RMixSearch::estimateNetworks(SEXP rSamples, SEXP rPerturbations,
 	CATNET_FREE(pSigmas);
 	pSigmas = 0; 
 
-	res = estimate((I_NETPARAMS<double>*) pRnormnet, numsamples, pSamples, pPerturbations, maxParentSet, 
+	estimate((I_NETPARAMS<double>*) pRnormnet, numsamples, pSamples, pPerturbations, maxParentSet, 
 			maxComplexity, parentsPool, fixedParentsPool, 
 			emIterations, stopDelta, emStartIterations, netSelection, echo);
 

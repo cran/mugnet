@@ -10,9 +10,9 @@
 mgNodeLoglik(object, nodes, data)
 }
 \arguments{
- 	\item{object}{a \code{mgNetwork}}
-	\item{nodes}{A \code{vector} of \code{integers}}
-	\item{data}{A \code{numeric} data}
+\item{object}{a \code{mgNetwork}}
+\item{nodes}{A \code{vector} of \code{integers}}
+\item{data}{A \code{numeric} data}
 }
 \details{\code{nodes} is a vector specifying the nodes which log-likelihood is requested.}
 

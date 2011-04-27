@@ -207,9 +207,9 @@ SEXP predict(SEXP cnet, SEXP rModel, SEXP rSamples) {
 
 SEXP nodeLoglik(SEXP cnet, SEXP rModel, SEXP rNodes, SEXP rSamples, SEXP rPerturbations) {
 
-	int *pPerturbations, *pNodes;
+	int *pNodes;
 	double *pSamples;
-	int numsamples, numnodes, nNodes, nnode, j;
+	int numsamples, nNodes, nnode, j;
 	double *pvec;
 	SEXP dim, rvec;
 
@@ -247,7 +247,7 @@ SEXP nodeLoglik(SEXP cnet, SEXP rModel, SEXP rNodes, SEXP rSamples, SEXP rPertur
 	PROTECT(rSamples = AS_NUMERIC(rSamples));
 	pSamples = NUMERIC_POINTER(rSamples);
 	dim = GET_DIM(rSamples);
-	numnodes = INTEGER(dim)[0];
+	//numnodes = INTEGER(dim)[0];
 	numsamples = INTEGER(dim)[1];
 
 	PROTECT(rNodes = AS_INTEGER(rNodes));
@@ -257,22 +257,18 @@ SEXP nodeLoglik(SEXP cnet, SEXP rModel, SEXP rNodes, SEXP rSamples, SEXP rPertur
 	PROTECT(rvec = NEW_NUMERIC(nNodes));
 	pvec = NUMERIC_POINTER(rvec);
 
-	dim = GET_DIM(rSamples);
-	numnodes = INTEGER(dim)[0];
-	numsamples = INTEGER(dim)[1];
-
 	// nNodes are assumed positive indices
 	for(j = 0; j < nNodes; j++) {
 		if(pNodes[j] > 0)
 			pNodes[j]--;
 	}
 
-	pPerturbations = 0;
-	if(!isNull(rPerturbations)) {
-		PROTECT(rPerturbations = AS_INTEGER(rPerturbations));
-		pPerturbations = INTEGER(rPerturbations);
-		UNPROTECT(1);
-	}
+	//int *pPerturbations = 0;
+	//if(!isNull(rPerturbations)) {
+	//	PROTECT(rPerturbations = AS_INTEGER(rPerturbations));
+	//	pPerturbations = INTEGER(rPerturbations);
+	//	UNPROTECT(1);
+	//}
 
 	// work with the sample distribution of pCurNet if necessary
 	if(rnet->maxParentSet() > 4 || rnet->maxCategories()*rnet->maxParentSet() > 9 || 

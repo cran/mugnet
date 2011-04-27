@@ -169,6 +169,19 @@ struct PROB_LIST {
 		loglik = 0;
 	}
 
+	void flush() {
+		int n;
+		printf("numnpars = %d, numcats= %d\n", numPars, numCats);
+		printf("parcats = ");
+		for(n = 0; n < numPars; n++)
+			printf("%d  ", numParCats[n]);
+		printf("\n");
+		if (pProbs)
+			for(n = 0; n < nProbSize; n++)
+				printf("%f  ", pProbs[n]);
+		printf("\n");
+	}
+
 	void normalize() {
 		int i, k;
 		t_prob pp;

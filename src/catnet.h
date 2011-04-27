@@ -843,6 +843,7 @@ public:
 
 		m_jointProbSize = 1;
 		for (i = 0; i < m_jointPoolSize; i++) {
+//printf("m_numCategories[m_jointPool[%d]] = %d\n", i, m_numCategories[m_jointPool[i]]);
 			m_jointProbSize *= m_numCategories[m_jointPool[i]];
 		}
 
@@ -851,11 +852,11 @@ public:
 		m_jointProb = (t_prob*) CATNET_MALLOC(m_jointProbSize * sizeof(t_prob));
 		for (i = 0; i < m_jointProbSize; i++)
 			m_jointProb[i] = 1.0;
-
+//printf("j4,  m_jointPoolSize = %d\n",  m_jointPoolSize);
 		for (ipool = 0; ipool < m_jointPoolSize; ipool++) {
 			poolnode = m_jointPool[ipool];
 			probnode = m_pProbLists[poolnode];
-
+//printf("poolnode = %d, probnode = %x \n", poolnode, probnode);
 			//cout << ipool << ", poolnode = " << poolnode + 1 << "\n";
 
 			if (m_numParents[poolnode] == 0) {
@@ -870,7 +871,7 @@ public:
 				}
 				continue;
 			}
-
+//printf("m_numParents[poolnode] = %d\n", m_numParents[poolnode]);
 			//cout << "Parents: ";
 			memset(paridx, 0, m_jointPoolSize * sizeof(int));
 			for (ipar = 0; ipar < m_numParents[poolnode]; ipar++) {
@@ -884,7 +885,7 @@ public:
 				}
 				paridx[i] = ipar + 1;
 			}
-
+//printf("m_jointProbSize = %d, m_maxParents = %d, m_pBlockSizes[%d] = %d\n", m_jointProbSize, m_maxParents, ipool, m_pBlockSizes[ipool]);
 			memset(pcats, 0, m_maxParents * sizeof(int));
 			for (ii = 0; ii < m_jointProbSize; ii += (m_pBlockSizes[ipool] * m_numCategories[poolnode])) {
 				for (j = 0; j < ipool; j++) {
@@ -895,7 +896,8 @@ public:
 					}
 				}
 				parprob = probnode->find_slot(0, pcats, 0);
-				if (!m_jointPool)
+//printf("parprob=%x, m_numCategories[poolnode] = %d\n", parprob, m_numCategories[poolnode]);
+				if (!parprob)
 					continue;
 				for (ic = 0; ic < m_numCategories[poolnode]; ic++) {
 					i0 = ic * m_pBlockSizes[ipool];
@@ -915,10 +917,9 @@ public:
 	int marginalProb(int nnode) {
 		int nodecats, ic, k;
 		nodecats = m_numCategories[nnode];
-
+		/*m_pProbLists[nnode]->flush();*/
 		if (findJointProb(nnode))
 			return ERR_CATNET_MEM;
-
 		if(m_pBlockSizes)
 			CATNET_FREE(m_pBlockSizes);
 		m_nBlockSizes = 1;
@@ -1035,6 +1036,8 @@ public:
 						ic = (int) (ii / m_pBlockSizes[j]);
 						ic -= m_numCategories[poolnode] * (int) (ic / m_numCategories[poolnode]);
 						pcats[paridx[j] - 1] = ic;
+						if(pcats[paridx[j] - 1] >= m_numCategories[m_jointPool[j]])
+							pcats[paridx[j] - 1] = m_numCategories[m_jointPool[j]] - 1;
 					}
 				}
 				parprob = probnode->find_slot(0, pcats, 0);
