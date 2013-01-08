@@ -29,7 +29,7 @@ mgSearchOrder <- function(data, perturbations = NULL,
   numsamples <- dim(data)[2]
 
   for(i in 1:numnodes) {
-    if(!is.numeric(data[,i]))
+    if(!is.numeric(data[i,]))
       stop("Data should be numeric")
   }
   

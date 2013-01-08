@@ -126,7 +126,7 @@ int estimate(
 	int **parentsPool, int **fixedParentsPool, 
 	int emIterations, double stopDelta = 0, int emStartIterations = 0, int netSelection = 0, int becho = FALSE) {
 
-	int i, j, k, d, ncomb, ncombMaxLogLik, nnode, numNodes;
+	int i, j, k, d, ncomb, ncombMaxLogLik, nnode, numNodes, res;
 	int maxCategories, complx, emiter, curSelComplexity;
 	const int *pNodeNumCats;
 	int *parset, parsetsize, *fixparset, fixparsetsize, *parcats;
@@ -261,16 +261,10 @@ int estimate(
 	curSelLoglik = pCurNet->getLoglik();
 
 	/* work with a sample distribution of pCurNet in case of high complexity */
-	if(pCurNet->maxParentSet() > 3 || pCurNet->maxCategories()*pCurNet->maxParentSet() > 9 || 
-		numNodes*pCurNet->maxCategories()*pCurNet->maxParentSet() > 81) {
-		k = (int)exp(log((t_prob)(pCurNet->maxCategories()))*(1+pCurNet->maxParentSet())) * 50;
-		if(becho)
-			printf("simulate probability with sample of size %d\n", k);
-		pCurNet->catnetSample(k);
-	}
+	pCurNet->set_sample_cache(becho);
 
 	if(becho)
-		printf("CurNet: complx = %d, logLik = %f\n", curSelComplexity, curSelLoglik);
+		Rprintf("CurNet: complx = %d, logLik = %f\n", curSelComplexity, curSelLoglik);
 
 	/* update betas and sigmas */
 
@@ -313,8 +307,14 @@ int estimate(
 			continue;
 		}
 
-		pCurNet->findNodeMarginalProb(nnode, psamples, numsamples);
-
+		res = pCurNet->findNodeMarginalProb(nnode, psamples, numsamples);
+		if(res == ERR_CATNET_MEM) {
+			int ncachesize = (int)exp(log((double)(pCurNet->maxCategories()))*(1+pCurNet->maxParentSet()))*1000;
+			pCurNet->catnetSample(ncachesize);
+			res = pCurNet->findNodeMarginalProb(nnode, psamples, numsamples);
+		}
+		if(res != ERR_CATNET_OK)
+			continue;
 		fBetaSigmaLoglik = pCurNet->estimateParameters(nnode, psamples, numsamples, pBetasNext[nnode], &pSigmasNext[nnode]);
 
 		/* refresh probabilities  */
@@ -385,8 +385,8 @@ int estimate(
 	for(nnode = 0; nnode < numNodes; nnode++) {
 
 		//if(becho) {
-		//	printf("processing node %d\n", nnode+1);
-		//	printf("    [#parents][#combinations] = ");
+		//	Rprintf("processing node %d\n", nnode+1);
+		//	Rprintf("    [#parents][#combinations] = ");
 		//}
 
 		if(perturbations) {
@@ -455,8 +455,7 @@ int estimate(
 			combinationSets(pcomblist, ncomblist, 0, parset, parsetsize, 
 				0, d - fixparsetsize);
 			//if(becho)
-			//	printf("[%d]%d  ", d, ncomblist);
-			//printf("nnode = %d, d = %d, ncomblist = %d\n", nnode,  d, ncomblist);
+			//	Rprintf("[%d]%d  ", d, ncomblist);
 			if(fixparsetsize > 0) {
 		        	if(!pcomblist || ncomblist < 1) {
 		        	    	pcomblist = (int**)CATNET_MALLOC(1*sizeof(int*));
@@ -484,8 +483,13 @@ int estimate(
 
 			for(ncomb = 0; ncomb < ncomblist; ncomb++) {
 
-				if(pCurNet->findNodeJointProb(nnode, pcomblist[ncomb], d, 
-					psamples, numsamples) != ERR_CATNET_OK) {
+				res = pCurNet->findNodeJointProb(nnode, pcomblist[ncomb], d, psamples, numsamples);
+				if(res == ERR_CATNET_MEM) {
+					int ncachesize = (int)exp(log((double)(pCurNet->maxCategories()))*(1+pCurNet->maxParentSet()))*1000;
+					pCurNet->catnetSample(ncachesize);
+					res = pCurNet->findNodeJointProb(nnode, pcomblist[ncomb], d, psamples, numsamples);
+				}
+				if(res != ERR_CATNET_OK) {
 					continue; 
 				}
 
@@ -602,7 +606,7 @@ int estimate(
 		} /* for d */
 
 		//if(becho)
-		//	printf("\n");
+		//	Rprintf("\n");
 
 		/* merge m_pNextNets and pCurCatnetList */		
 		for(j = 0; j < m_nNets; j++) {
@@ -651,7 +655,7 @@ int estimate(
 	emiter++;
 
 	if(becho)
-		printf("EM Iteration %d: #nets = %d\n", emiter, i);
+		Rprintf("EM Iteration %d: #nets = %d\n", emiter, i);
 
 	/* a local maximum is achieved */
 	if(emiter > emStartIterations && logdiff < stopDelta) {
@@ -717,20 +721,20 @@ int estimate(
 		pBetasNext = (double**)m_pCurNets[j]->betas();
 		pSigmasNext = (double*)m_pCurNets[j]->sigmas();
 		if(becho && pBetasNext) {
-			printf("Loglik sequence for network with complexity %d: ", j);
+			Rprintf("Loglik sequence for network with complexity %d: ", j);
 			for(emiter = 0; emiter < emIterations; emiter++)
-				printf("  %.4f", m_emLoglik[j + m_nNets*emiter]);
-			printf("\n");
+				Rprintf("  %.4f", m_emLoglik[j + m_nNets*emiter]);
+			Rprintf("\n");
 			for(i = 0; i < numNodes; i++) {
-				printf("  beta[%d] = ", i+1);
+				Rprintf("  beta[%d] = ", i+1);
 				for(ic = 0; ic < pNodeNumCats[i]; ic++)
 					if(pBetasNext[i])
-						printf("%.4f  ", pBetasNext[i][ic]);
-				printf("\n");
+						Rprintf("%.4f  ", pBetasNext[i][ic]);
+				Rprintf("\n");
 				if(pSigmasNext)
-					printf("    sigma[%d] = %.4f\n", i+1, pSigmasNext[i]);
+					Rprintf("    sigma[%d] = %.4f\n", i+1, pSigmasNext[i]);
 			}
-			printf("\n");
+			Rprintf("\n");
 		}
 	}
 

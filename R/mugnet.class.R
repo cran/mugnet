@@ -52,6 +52,11 @@ setGeneric("mgPredict",
            standardGeneric("mgPredict")
 	)
 
+setGeneric("mgSetProb", 
+          function(object, data)
+           standardGeneric("mgSetProb")
+	)
+
 setGeneric("mgLoglik", 
           function(object, data, bysample=FALSE)
            standardGeneric("mgLoglik")
@@ -65,4 +70,17 @@ setGeneric("mgNodeLoglik",
 setGeneric("mgReorderNodes", 
           function(object, nodeIndices)
            standardGeneric("mgReorderNodes")
+	)
+
+setGeneric("mgFind", 
+          function(object, complexity=0, alpha=0, factor=1)
+           standardGeneric("mgFind")
+	)
+setGeneric("mgFindAIC", 
+          function(object)
+           standardGeneric("mgFindAIC")
+	)
+setGeneric("mgFindBIC", 
+          function(object)
+           standardGeneric("mgFindBIC")
 	)

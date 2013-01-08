@@ -106,7 +106,7 @@ RMixNet::RMixNet(SEXP cnet) {
 			}
 			else {
 				m_nodeNames[nnode] = (char*) CATNET_MALLOC(MAX_NODE_NAME * sizeof(char));
-				sprintf(m_nodeNames[nnode], "N%d", nnode);
+				strcpy(m_nodeNames[nnode], pstr);
 			}
 		}
 

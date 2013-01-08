@@ -20,7 +20,6 @@
 #include <Rinternals.h>
 #include <Rdefines.h>
 #include <Rmath.h>
-#include <R_ext/RConverters.h>
 #include <R_ext/Rdynload.h>
 
 /* these are called by R-functions directly */
@@ -41,4 +40,5 @@ SEXP quickSort(SEXP rlist);
 
 SEXP sample(SEXP cnet, SEXP rModel, SEXP rNumSamples);
 SEXP predict(SEXP cnet, SEXP rModel, SEXP rSamples);
+SEXP setProbability(SEXP cnet, SEXP rModel, SEXP rSamples);
 SEXP nodeLoglik(SEXP cnet, SEXP rModel, SEXP rNodes, SEXP rSamples, SEXP rPerturbations);

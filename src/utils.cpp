@@ -29,24 +29,28 @@
 extern size_t g_memcounter;
 //extern FILE *g_hf;
 
-int g_ask_mem_alloc = (1<<30);
+unsigned int g_ask_mem_alloc = MAX_MEM_ALLOC;
 
 void * CATNET_MALLOC(size_t nsize) { 
+	void *pMem = 0;
 	if(nsize <= 0)
 		return 0;
-	if(nsize > (unsigned)g_ask_mem_alloc) {
-		printf("A large chunk of memory is about to be allocated, %u. Continue? (y/n) ", (unsigned)nsize);
+	if(nsize > g_ask_mem_alloc) {
+		Rprintf("A large chunk of memory is about to be allocated, %u. Continue? (y/n) ", (unsigned)nsize);
 		char nch = getchar();
-		//printf("%c,%d, %c\n", nch, (int)nch, 'y');
+		//Rprintf("%c,%d, %c\n", nch, (int)nch, 'y');
 		if(nch != 'y')
 			error("Process stopped by user");
 		g_ask_mem_alloc = nsize;
 		// read the 0xa character
 		nch = getchar();
 	}
-	return malloc(nsize);
+	pMem = malloc(nsize);
+	if(!pMem)
+		error("Insufficient memory");
+	return pMem;
 	g_memcounter += nsize;
-	void *pMem = malloc(sizeof(int) + nsize);
+	pMem = malloc(sizeof(int) + nsize);
 	if(!pMem) {
 		error("Insufficient memory");
 		return 0;
@@ -56,7 +60,6 @@ void * CATNET_MALLOC(size_t nsize) {
 	//char str[128];
 	//sprintf(str, "+%d    %d        %p\n", (int)nsize, (int)g_memcounter, pMem);
 	//fprintf(g_hf,str);
-	//printf(str);
 	return pMem;
 }
 
@@ -70,7 +73,7 @@ void CATNET_FREE(void *pMem) {
 	g_memcounter -= nsize;	
 	//char str[128];
 	//sprintf(str, "-%d    %d        %p\n", (int)nsize, (int)g_memcounter, (char*)pMem+sizeof(int));
-	//printf(str);
+	//Rprintf(str);
 	//fprintf(g_hf,str);
 	free(pMem);
 }

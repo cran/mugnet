@@ -42,7 +42,6 @@ RExpMix::RExpMix(SEXP cnet) {
 	double *pvec, *pbeta;
 	int nnode, i, nvec, *pn;
 	char const *pstr;
-	//char str[256];
 
 	SEXP rname, rnodes, rparents, rcatlist, rproblist, pf, 
 		nodepars, nodeproblist, pint, rnodeprob, 
@@ -107,7 +106,7 @@ RExpMix::RExpMix(SEXP cnet) {
 			}
 			else {
 				m_nodeNames[nnode] = (char*) CATNET_MALLOC(MAX_NODE_NAME * sizeof(char));
-				sprintf(m_nodeNames[nnode], "N%d", nnode);
+				strcpy(m_nodeNames[nnode], pstr);
 			}
 		}
 
@@ -138,8 +137,6 @@ RExpMix::RExpMix(SEXP cnet) {
 			pvec = 0;
 			nvec = 0;
 			gen_prob_vector(nnode, nodepars, 0, rcatlist, nodeproblist, pvec, nvec);
-			//sprintf(str, "%d, %d,  %p, %d\n", nnode, m_numParents[nnode], pvec, nvec);
-			//cout << str;
 			setCondProb(nnode, pvec, nvec);
 			CATNET_FREE(pvec);
 		}
@@ -169,8 +166,6 @@ RExpMix::RExpMix(SEXP cnet) {
 	}
 
 	UNPROTECT(2);
-
-	//printf("New RMixNet %d, %d, %d\n", m_numNodes, m_maxParents, m_maxCategories);
 }
 
 SEXP RExpMix::genRcatnet(const char * objectName = (const char*)"catNetwork") {

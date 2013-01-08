@@ -63,6 +63,7 @@ public:
 	virtual void setNodesOrder(const int *porder) = 0;
 	virtual int * getOrder() = 0;
 	virtual int* catnetSample(int nsamples) = 0;
+	virtual void set_sample_cache(int becho = 0) = 0;
 
 	virtual void setNodeBetas(int nnode, t_prob *pbetas) = 0;
 	virtual void setNodeSigma(int nnode, t_prob fSigma) = 0;
@@ -85,6 +86,7 @@ public:
 
 	virtual int sample(t_prob *psamples, int nsamples) = 0;
 	virtual int predict(t_prob *psamples, int nsamples) = 0;
+	virtual int setProbability(t_prob *psamples, int nsamples) = 0;
 };
 
 

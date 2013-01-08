@@ -46,7 +46,7 @@
 #define ERR_CATNET_INIT		-3
 #define ERR_CATNET_PROC		-4
 
-template<class t_node, int t_node_size, class t_prob>
+template<class t_node, class t_prob>
 class CATNET {
 protected:
 	/* nodes are assumed ordered */
@@ -88,8 +88,7 @@ public:
 		_release();
 	}
 
-	CATNET<t_node, t_node_size, t_prob>& operator =(const CATNET<t_node,
-			t_node_size, t_prob> &cnet) {
+	CATNET<t_node, t_prob>& operator =(const CATNET<t_node, t_prob> &cnet) {
 		init(cnet.m_numNodes, cnet.m_maxParents, cnet.m_maxCategories,
 				(const t_node**)cnet.m_nodeNames, (const int*)cnet.m_numParents, 
 				(const int**)cnet.m_parents,
@@ -131,7 +130,6 @@ protected:
 			CATNET_FREE(m_catIndices);
 		if (m_pProbLists)
 			CATNET_FREE(m_pProbLists);
-//printf("CATNET::_release: m_jointProb=%p, m_margProb=%p\n", m_jointProb, m_margProb);
 		if(m_jointPool)
 			CATNET_FREE(m_jointPool);
 		if(m_pBlockSizes)
@@ -605,7 +603,6 @@ public:
 			}
 			porder[i] = j;
 			pfound[j] = 1;
-			//printf("porder[%d] = %d\n", i+1, porder[i]+1);
 		}
 		CATNET_FREE(pfound);
 		return porder;
@@ -723,15 +720,6 @@ private:
 		for (ipar = 0; ipar < m_numParents[nnode]; ipar++) {
 			par = m_parents[nnode][ipar];
 			parpool = _findParentPool(par, parpoolsize);
-
-//printf("\n\nppool: ");
-//for (j = 0; j < poolsize; j++) 
-//	printf("%d, ", ppool[j]+1);
-//printf("\n");
-//printf("parpool: ");
-//for (j = 0; j < parpoolsize; j++) 
-//	printf("%d, ", parpool[j]+1);
-//printf("\n");
 			i = 0;
 			while (i < parpoolsize) {
 				bfound = 0;
@@ -750,7 +738,6 @@ private:
 				parpoolsize--;
 			}
 
-			//cout << "par = " << par+1 << "poolsize = " << poolsize << ", parpoolsize = " << parpoolsize << "\n";
 			paux = (int*) CATNET_MALLOC((poolsize + parpoolsize + 1) * sizeof(int));
 			if (poolsize > 0 && ppool)
 				memcpy(paux, ppool, poolsize * sizeof(int));
@@ -805,7 +792,7 @@ public:
 
 	int findJointProb(int nnode) {
 		t_prob *parprob;
-		int i, ii, i0, ic, ipar, j, par, ipool, poolnode;
+		int i, ii, i0, ic, ipar, j, par, ipool, poolnode, cc;
 		int *paux, *paridx, *pcats;
 		PROB_LIST<t_prob> *probnode = 0;
 
@@ -843,7 +830,6 @@ public:
 
 		m_jointProbSize = 1;
 		for (i = 0; i < m_jointPoolSize; i++) {
-//printf("m_numCategories[m_jointPool[%d]] = %d\n", i, m_numCategories[m_jointPool[i]]);
 			m_jointProbSize *= m_numCategories[m_jointPool[i]];
 		}
 
@@ -852,12 +838,9 @@ public:
 		m_jointProb = (t_prob*) CATNET_MALLOC(m_jointProbSize * sizeof(t_prob));
 		for (i = 0; i < m_jointProbSize; i++)
 			m_jointProb[i] = 1.0;
-//printf("j4,  m_jointPoolSize = %d\n",  m_jointPoolSize);
 		for (ipool = 0; ipool < m_jointPoolSize; ipool++) {
 			poolnode = m_jointPool[ipool];
 			probnode = m_pProbLists[poolnode];
-//printf("poolnode = %d, probnode = %x \n", poolnode, probnode);
-			//cout << ipool << ", poolnode = " << poolnode + 1 << "\n";
 
 			if (m_numParents[poolnode] == 0) {
 				for (ii = 0; ii < m_jointProbSize; ii += (m_pBlockSizes[ipool]
@@ -871,8 +854,7 @@ public:
 				}
 				continue;
 			}
-//printf("m_numParents[poolnode] = %d\n", m_numParents[poolnode]);
-			//cout << "Parents: ";
+
 			memset(paridx, 0, m_jointPoolSize * sizeof(int));
 			for (ipar = 0; ipar < m_numParents[poolnode]; ipar++) {
 				par = m_parents[poolnode][ipar];
@@ -885,18 +867,17 @@ public:
 				}
 				paridx[i] = ipar + 1;
 			}
-//printf("m_jointProbSize = %d, m_maxParents = %d, m_pBlockSizes[%d] = %d\n", m_jointProbSize, m_maxParents, ipool, m_pBlockSizes[ipool]);
 			memset(pcats, 0, m_maxParents * sizeof(int));
 			for (ii = 0; ii < m_jointProbSize; ii += (m_pBlockSizes[ipool] * m_numCategories[poolnode])) {
 				for (j = 0; j < ipool; j++) {
 					if (paridx[j] > 0) {
 						ic = (int) (ii / m_pBlockSizes[j]);
-						ic -= m_numCategories[poolnode] * (int) (ic / m_numCategories[poolnode]);
+						cc = m_numCategories[m_parents[poolnode][paridx[j] - 1]];
+						ic -= cc * (int) (ic / cc);
 						pcats[paridx[j] - 1] = ic;
 					}
 				}
 				parprob = probnode->find_slot(0, pcats, 0);
-//printf("parprob=%x, m_numCategories[poolnode] = %d\n", parprob, m_numCategories[poolnode]);
 				if (!parprob)
 					continue;
 				for (ic = 0; ic < m_numCategories[poolnode]; ic++) {
@@ -946,7 +927,7 @@ public:
 
 		t_prob *parprob;
 		int inode, nnode;
-		int i, ii, i0, ic, ipar, j, par, ipool, poolnode;
+		int i, ii, i0, ic, ipar, j, par, ipool, poolnode, cc;
 		int *paux, *paridx, *pcats;
 		PROB_LIST<t_prob> *probnode = 0;
 
@@ -1034,7 +1015,8 @@ public:
 				for (j = 0; j < ipool; j++) {
 					if (paridx[j] > 0) {
 						ic = (int) (ii / m_pBlockSizes[j]);
-						ic -= m_numCategories[poolnode] * (int) (ic / m_numCategories[poolnode]);
+						cc = m_numCategories[m_parents[poolnode][paridx[j] - 1]];
+						ic -= cc * (int) (ic / cc);
 						pcats[paridx[j] - 1] = ic;
 						if(pcats[paridx[j] - 1] >= m_numCategories[m_jointPool[j]])
 							pcats[paridx[j] - 1] = m_numCategories[m_jointPool[j]] - 1;
@@ -1061,12 +1043,13 @@ public:
 	int marginalProb(int *pnodes, int numnodes) {
 		t_prob *paux;
 		int ic, k, kk, i, ii, m, imarg, nnode, newsize;
-		
 		/* ASSUME THAT pnodes are consistent the topological order of the network, i.e. 
 		   no node with higher index is a parent of a node with lower one  */
 		if (findJointProb(pnodes, numnodes) != ERR_CATNET_OK)
 			return ERR_CATNET_MEM;
-
+		if(sizeof(t_prob)*m_jointProbSize > MAX_MEM_ALLOC) {
+			return ERR_CATNET_MEM;
+		}
 		if(m_margProb)
 			CATNET_FREE(m_margProb);
 		m_margProbSize = m_jointProbSize;

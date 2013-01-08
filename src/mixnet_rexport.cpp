@@ -77,10 +77,6 @@ SEXP searchOrder(
 	
 	delete pengine;
 
-	//char str[128];
-	//sprintf(str, "Mem Balance  %d\n", (int)g_memcounter);
-	//printf(str);
-
 	return res;
 }
 
@@ -205,6 +201,68 @@ SEXP predict(SEXP cnet, SEXP rModel, SEXP rSamples) {
 	return rsamples;
 }
 
+SEXP setProbability(SEXP cnet, SEXP rModel, SEXP rSamples) {
+
+	int numnodes, numsamples, sel;
+	double *pRsamples, *pSamples;
+	SEXP dim, rnet = R_NilValue;
+	
+	if(!isMatrix(rSamples))
+		error("rSamples is not a matrix");
+	
+	I_NETPARAMS<double>* pnet = NULL;
+
+	PROTECT(rModel = AS_CHARACTER(rModel));
+
+	PROTECT(cnet);
+	if(!strncmp(CHARACTER_VALUE(rModel), "Gaus", 4)) {
+		sel = 1;
+		pnet = new RMixNet(cnet);
+	}
+	else if(!strncmp(CHARACTER_VALUE(rModel), "Pois", 4)) {
+		sel = 2;
+		pnet = new RPoissonMix(cnet);
+	}
+	else if(!strncmp(CHARACTER_VALUE(rModel), "Exp", 3)) {
+		sel = 3;
+		pnet = new RExpMix(cnet);
+	}
+	else {
+		UNPROTECT(2);
+		error("Wrong model");
+	}
+	UNPROTECT(2); // rModel, cnet
+
+	if(!pnet)
+		return R_NilValue;
+
+	PROTECT(rSamples = AS_NUMERIC(rSamples));
+	pRsamples = NUMERIC_POINTER(rSamples);
+	dim = GET_DIM(rSamples);
+	numnodes = INTEGER(dim)[0];
+	numsamples = INTEGER(dim)[1];
+	pSamples = (double*)CATNET_MALLOC(numnodes*numsamples*sizeof(double));
+	memcpy(pSamples, pRsamples, numnodes*numsamples*sizeof(double));
+	UNPROTECT(1);
+
+	pnet->setProbability(pSamples, numsamples);
+
+	if(pSamples)
+		CATNET_FREE(pSamples);
+
+	if(sel == 1) 
+		PROTECT(rnet = ((RMixNet*)pnet)->genRmixnet("mgNetwork"));
+	else if(sel == 2) 
+		PROTECT(rnet = ((RPoissonMix*)pnet)->genRmixnet("mgNetwork"));
+	else if(sel == 3) 
+		PROTECT(rnet = ((RExpMix*)pnet)->genRmixnet("mgNetwork"));
+	UNPROTECT(1); // rnet
+
+	pnet->releaseRef();
+
+	return rnet;
+}
+
 SEXP nodeLoglik(SEXP cnet, SEXP rModel, SEXP rNodes, SEXP rSamples, SEXP rPerturbations) {
 
 	int *pNodes;
@@ -271,13 +329,7 @@ SEXP nodeLoglik(SEXP cnet, SEXP rModel, SEXP rNodes, SEXP rSamples, SEXP rPertur
 	//}
 
 	// work with the sample distribution of pCurNet if necessary
-	if(rnet->maxParentSet() > 4 || rnet->maxCategories()*rnet->maxParentSet() > 9 || 
-		rnet->numNodes()*rnet->maxCategories()*rnet->maxParentSet() > 120) {
-		j = (int)exp(log((double)(rnet->maxCategories()))*(1+rnet->maxParentSet())) * 100;
-		//if(becho)
-		//	printf("simulate probability with sample of size %d\n", j);
-		rnet->catnetSample(j);
-	}
+	rnet->set_sample_cache();
 
 	for(nnode = 0; nnode < nNodes; nnode++) {
 		pvec[nnode] = rnet->findNodeLoglik(pNodes[nnode], pSamples, numsamples);
@@ -286,10 +338,6 @@ SEXP nodeLoglik(SEXP cnet, SEXP rModel, SEXP rNodes, SEXP rSamples, SEXP rPertur
 	UNPROTECT(3);
 
 	rnet->releaseRef();
-
-	//char str[128];
-	//sprintf(str, "Mem Balance  %d\n", (int)g_memcounter);
-	//printf(str);
 
 	return rvec;
 }
@@ -626,8 +674,6 @@ SEXP findParentPool(SEXP cnet, SEXP rnode)
 
 	PROTECT(rnode = AS_INTEGER(rnode));
 
-	//printf("length(rnode) = %d\n", length(rnode));
-
 	if(length(rnode) == 1) {
 		node = INTEGER_VALUE(rnode);
 		UNPROTECT(1);
@@ -644,7 +690,6 @@ SEXP findParentPool(SEXP cnet, SEXP rnode)
 		int *pnodes = (int*)CATNET_MALLOC(length(rnode)*sizeof(int));
 		for(i = 0; i < length(rnode); i++) {
 			pnodes[i] = pvec[i] - 1;
-			//printf("%d: %d\n", i, pnodes[i]);
 		}
 		UNPROTECT(1);
 		if(rnet->findParentPool(pnodes, length(rnode)) != ERR_CATNET_OK) {
@@ -671,8 +716,6 @@ char *gen_prob_string(int node, SEXP parlist, int paridx, SEXP catlist, SEXP pro
 	int j, npar;
 	SEXP parprobs, pcats;
 	char *newstr, *aux, *aux2, *aux3;
-
-	//char ss[128];
 
 	if(!str) {
 		str = (char*)CATNET_MALLOC(1);
@@ -703,15 +746,11 @@ char *gen_prob_string(int node, SEXP parlist, int paridx, SEXP catlist, SEXP pro
 
 		aux = (char*)CATNET_MALLOC((strlen(str)+1+8)*sizeof(char));
 
-		//sprintf(aux, "%d, %d, %d,  %s\n", node, npar, length(parprobs), CHAR(STRING_ELT(pcats, j)));
-		//printf(aux);
-
 		sprintf(aux, "%s%s", str, CHAR(STRING_ELT(pcats, j)));
 		aux2 = gen_prob_string(node, parlist, paridx + 1, catlist, parprobs, aux);
 
 		aux3 = (char*)CATNET_MALLOC((strlen(newstr)+strlen(aux2)+2)*sizeof(char));
 		sprintf(aux3, "%s%s", newstr, aux2);
-		//sprintf(ss, "5 CATNET_FREE: %p, %d\n", newstr, strlen(newstr)); printf(ss);
 		CATNET_FREE(newstr);
 		newstr = aux3;
 
@@ -770,7 +809,7 @@ void gen_prob_vector(int node, SEXP parlist, int paridx, SEXP catlist, SEXP prob
 	if(paridx >= length(parlist)) {
 		pcats = VECTOR_ELT(catlist, node);
 		if (length(problist) != length(pcats)) {
-			printf("gen_prob_vector: Format error in problist.");
+			Rprintf("gen_prob_vector: Format error in problist.");
 			return;
 		}
 		newvec = (double*)CATNET_MALLOC((nvec + length(pcats))*sizeof(double));
@@ -787,7 +826,7 @@ void gen_prob_vector(int node, SEXP parlist, int paridx, SEXP catlist, SEXP prob
 	npar = INTEGER_POINTER(parlist)[paridx] - 1;
 	pcats = VECTOR_ELT(catlist, npar);
 	if (length(problist) != length(pcats)) {
-		printf("gen_prob_vector: Format error in problist.");
+		Rprintf("gen_prob_vector: Format error in problist.");
 		return;
 	}
 	for(j = 0; j < length(pcats); j++) {

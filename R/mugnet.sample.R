@@ -76,13 +76,18 @@ setMethod("mgNodeLoglik", c("mgNetwork"),
             if(!is.numeric(data))
               stop("'data' should be numeric")
 
+            numnodes <- dim(data)[1]
+            numsamples <- dim(data)[2]  
+            if(numsamples < 1)
+              stop("No samples\n")
+            
             rownames <- rownames(data)
             if(length(rownames) != object@numnodes)
               stop("The data rows should be named after the nodes of the object.")
             
             if(prod(tolower(rownames) == tolower(object@nodes)) == 0) {
               norder <- order(rownames)
-              data <- data[norder,]
+              data <- matrix(data[norder,], nrow=numnodes)
               rownames <- rownames(data)
               norder <- order(object@nodes)
               object <- cnReorderNodes(object, norder)
@@ -90,12 +95,10 @@ setMethod("mgNodeLoglik", c("mgNetwork"),
             
             if(prod(tolower(rownames) == tolower(object@nodes)) == 0)
               stop("The row names should correspond to the object nodes.")
-            
-            numnodes <- dim(data)[1]
-            numsamples <- dim(data)[2]  
-            if(numsamples < 1)
-              stop("No samples\n")
 
+            if(is.character(nodes)) {
+              nodes <- sapply(nodes, function(cnode) which(object@nodes == cnode))
+            }
             nodes <- as.integer(nodes)
             if(!is.vector(nodes) || length(nodes) < 1)
               stop("'nodes' should be a vector of node indices")

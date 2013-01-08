@@ -26,6 +26,7 @@ int g_netcounter;
 static const R_CallMethodDef R_CallDef[] = {
         {"mgSearchOrderC", (DL_FUNC)&searchOrder, 14},
 	{"mgPredictC", (DL_FUNC)&predict, 3},
+	{"mgSetProbabilityC", (DL_FUNC)&setProbability, 3},
 	{"mgSampleC", (DL_FUNC)&sample, 3},
 	{"mgNodeLoglikC", (DL_FUNC)&nodeLoglik, 5},
 	{NULL, NULL, 0},

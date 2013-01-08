@@ -111,9 +111,6 @@ SEXP RMixSearch::estimateNetworks(SEXP rSamples, SEXP rPerturbations,
 			maxCategories = pNodeCategories[i];
  	}
 
-	//printf("maxParentSet = %d, maxComplexity = %d, numnodes = %d, numsamples = %d\n", maxParentSet, maxComplexity, numnodes, numsamples);
-	//printf("%p, %p, %p, %p\n", (void*)rSamples, (void*)rPerturbations, (void*)rParentsPool, (void*)rFixedParentsPool);
-
 	pSamples = (double*)CATNET_MALLOC(numnodes*numsamples*sizeof(double));
 	pRsamples = NUMERIC_POINTER(rSamples);
 
@@ -135,7 +132,7 @@ SEXP RMixSearch::estimateNetworks(SEXP rSamples, SEXP rPerturbations,
 	pNodeSamples = (double*)CATNET_MALLOC(numsamples*sizeof(double));
 
 	if(echo)
-		printf("Starting parameters:\n");
+		Rprintf("Starting parameters:\n");
 
 	for(i = 0; i < numnodes; i++) {
 		nnode = pRorder[i] - 1;
@@ -148,7 +145,7 @@ SEXP RMixSearch::estimateNetworks(SEXP rSamples, SEXP rPerturbations,
 		_quick_sort<double>(pNodeSamples, numsamples);
 		range = pNodeSamples[numsamples-1] - pNodeSamples[0];
 		if(echo)
-			printf("  beta[%d] = ", i);
+			Rprintf("  beta[%d] = ", i);
 		
 		pBetas[i] = (double*)CATNET_MALLOC(pNodeCategories[i]*sizeof(double));
 		for(j = 0; j < pNodeCategories[i]; j++) {
@@ -158,14 +155,14 @@ SEXP RMixSearch::estimateNetworks(SEXP rSamples, SEXP rPerturbations,
 			//k = (2*j+1)*numsamples / (2*pNodeCategories[i]);
 			//pBetas[i][j] = pNodeSamples[(int)k];
 			if(echo)
-				printf("%.4f  ", pBetas[i][j]);
+				Rprintf("%.4f  ", pBetas[i][j]);
 		}
 		if(echo)
-			printf("\n");
+			Rprintf("\n");
 		pSigmas[i] = range / (2*pNodeCategories[i]);
 		pSigmas[i] = pSigmas[i]*pSigmas[i];
 		if(echo)
-			printf("    sigma[%d] = %.4f\n", i, pSigmas[i]);
+			Rprintf("    sigma[%d] = %.4f\n", i, pSigmas[i]);
 	}
 
 	// rSamples & rNodeCategories
@@ -255,7 +252,7 @@ SEXP RMixSearch::estimateNetworks(SEXP rSamples, SEXP rPerturbations,
 
 	PROTECT(rModel = AS_CHARACTER(rModel));
 	if(echo)
-		printf("model = %s\n", CHARACTER_VALUE(rModel));
+		Rprintf("model = %s\n", CHARACTER_VALUE(rModel));
 	// make an egg
 	I_NETPARAMS<double>* pRnormnet = NULL;
 	if(!strncmp(CHARACTER_VALUE(rModel), "Gaus", 4)) {
@@ -364,7 +361,7 @@ SEXP RMixSearch::estimateNetworks(SEXP rSamples, SEXP rPerturbations,
 	}
 
 	if(echo)
-		printf("Found %d networks\n", numnets);
+		Rprintf("Found %d networks\n", numnets);
 
 	PROTECT(cnetlist = allocVector(VECSXP, numnets));
 

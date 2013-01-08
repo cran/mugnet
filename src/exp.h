@@ -34,7 +34,7 @@
 
 extern int g_netcounter;
 
-class CExpNet : public CATNET<char, MAX_NODE_NAME, double>, public I_NETPARAMS<double> {
+class CExpNet : public CATNET<char, double>, public I_NETPARAMS<double> {
 private:
 	int m_ref;
 	int *m_pCatnetSamples, m_nCatnetSamples;
@@ -103,39 +103,39 @@ public:
 	}
 
 	int numNodes() {
-		return CATNET<char, MAX_NODE_NAME, double>::numNodes();
+		return CATNET<char, double>::numNodes();
 	}
 
 	int maxParentSet() {
-		return CATNET<char, MAX_NODE_NAME, double>::maxParents();
+		return CATNET<char, double>::maxParents();
 	}
 
 	int maxCategories() {
-		return CATNET<char, MAX_NODE_NAME, double>::maxCategories();
+		return CATNET<char, double>::maxCategories();
 	}
 
 	const int* numCategories() {
-		return CATNET<char, MAX_NODE_NAME, double>::numCategories();
+		return CATNET<char, double>::numCategories();
 	} 
 
 	int setParents(int nnode, int* parents, int numparents) {
-		return CATNET<char, MAX_NODE_NAME, double>::setParents(nnode, parents, numparents);
+		return CATNET<char, double>::setParents(nnode, parents, numparents);
 	}
 
 	int getNumParents(int nnode) {
-		return CATNET<char, MAX_NODE_NAME, double>::numParents(nnode);
+		return CATNET<char, double>::numParents(nnode);
 	}
 
 	int setNodeProb(int nnode, PROB_LIST<double> *pprob) {
-		return CATNET<char, MAX_NODE_NAME, double>::setNodeProb(nnode, pprob);
+		return CATNET<char, double>::setNodeProb(nnode, pprob);
 	}
 
 	const PROB_LIST<double>* getNodeProb(int nnode) {
-		return CATNET<char, MAX_NODE_NAME, double>::getNodeProb(nnode);
+		return CATNET<char, double>::getNodeProb(nnode);
 	}
 
 	double setNodeSampleProb(int nnode, int *psamples, int nsamples) {
-		return CATNET<char, MAX_NODE_NAME, double>::setNodeSampleProb(
+		return CATNET<char, double>::setNodeSampleProb(
 							nnode, psamples, nsamples, 1/* do normalize */);
 	}
 
@@ -146,15 +146,15 @@ public:
 		int complx = 0;
 		for(n = 0; n < numnodes; n++)
 			complx += pNumCats[n];
-		return(complx + CATNET<char, MAX_NODE_NAME, double>::complexity());
+		return(complx + CATNET<char, double>::complexity());
 	}
 
 	double setLoglik(double lik) {
-		return CATNET<char, MAX_NODE_NAME, double>::setLoglik(lik);
+		return CATNET<char, double>::setLoglik(lik);
 	}
 
 	double getLoglik() {
-		return CATNET<char, MAX_NODE_NAME, double>::getLoglik();
+		return CATNET<char, double>::getLoglik();
 	}
 
 	double loglik();
@@ -165,14 +165,16 @@ public:
 	double findLogNodeLikelihood(int nnode, double *psamples, int nsamples);
 	
 	void setNodesOrder(const int *porder) {
-		return CATNET<char, MAX_NODE_NAME, double>::setNodesOrder(porder);
+		return CATNET<char, double>::setNodesOrder(porder);
 	}
 
 	int *getOrder() {
-		return CATNET<char, MAX_NODE_NAME, double>::getOrder();
+		return CATNET<char, double>::getOrder();
 	}
 
 	int* catnetSample(int nsamples);
+
+	void set_sample_cache(int becho = 0);
 
 	void setNodeBetas(int nnode, double *pbetas);
 	void setNodeSigma(int nnode, double fSigma);
@@ -197,6 +199,9 @@ public:
 
 	int sample(double *psamples, int nsamples);
 	int predict(double *psamples, int nsamples);
+	
+	int estimateNodeProb(int nnode, int *parnodes, int numpars, double *psamples, int nsamples);
+	int setProbability(double *psamples, int nsamples);
 };
 
 #endif /* EXPNET_CLASS_H */
