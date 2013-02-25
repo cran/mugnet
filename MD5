@@ -1,4 +1,4 @@
-efd9f8dff2038535ab3a1ae2b5cbafa9 *DESCRIPTION
+274f32300b8a03f71e63e60005f91cb6 *DESCRIPTION
 d7dd867a6419a8d78105244ba37b8f3a *NAMESPACE
 8621b5b80ca6989281e05ad51ec57ea7 *R/mugnet.class.R
 0c0f73d30deceb9a482dd569dc634298 *R/mugnet.def.R
@@ -54,5 +54,5 @@ d7c4f6b7c21f1dead10616c4f218e84a *src/rexpmix.cpp
 8e7ef3b4936ed1f94b3cf1451a20931f *src/rpoissonmix.h
 f57a3a5a1ade03648658ceaff1f9b21d *src/rsearch.cpp
 82acd8b5b38054f3e6cda54e2653e099 *src/rsearch.h
-5bad63d99eb6014038b4900438afee71 *src/utils.cpp
-ccf18aaa5bf858107dbe23366d47f515 *src/utils.h
+3e2b3ad4bc46680a5642c66adf129bbf *src/utils.cpp
+5cbe8af05a51e64420d1a39ea473b0aa *src/utils.h

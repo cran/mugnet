@@ -38,7 +38,6 @@ void * CATNET_MALLOC(size_t nsize) {
 	if(nsize > g_ask_mem_alloc) {
 		Rprintf("A large chunk of memory is about to be allocated, %u. Continue? (y/n) ", (unsigned)nsize);
 		char nch = getchar();
-		//Rprintf("%c,%d, %c\n", nch, (int)nch, 'y');
 		if(nch != 'y')
 			error("Process stopped by user");
 		g_ask_mem_alloc = nsize;
@@ -57,9 +56,6 @@ void * CATNET_MALLOC(size_t nsize) {
 	}
 	*(int*)pMem = nsize;
 	pMem = (void*)((int*)pMem + 1);
-	//char str[128];
-	//sprintf(str, "+%d    %d        %p\n", (int)nsize, (int)g_memcounter, pMem);
-	//fprintf(g_hf,str);
 	return pMem;
 }
 
@@ -71,10 +67,6 @@ void CATNET_FREE(void *pMem) {
 	pMem = (void*)((int*)pMem-1);
 	size_t nsize = *((int*)pMem);
 	g_memcounter -= nsize;	
-	//char str[128];
-	//sprintf(str, "-%d    %d        %p\n", (int)nsize, (int)g_memcounter, (char*)pMem+sizeof(int));
-	//Rprintf(str);
-	//fprintf(g_hf,str);
 	free(pMem);
 }
 

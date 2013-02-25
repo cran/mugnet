@@ -46,7 +46,7 @@
 
 #define PI2	(2*(double)CATNET_PI)
 
-#define MAX_MEM_ALLOC 3000000000
+#define MAX_MEM_ALLOC 4e9
 
 void * CATNET_MALLOC(size_t nsize);
 void CATNET_FREE(void *pMem);
