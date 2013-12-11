@@ -27,9 +27,9 @@ for(i in 1:length(eval@nets)) {
 }
 eval.alive <- eval
 
-bst0d <- cnFindBIC(eval.dead, ncol(lung.dead))
+bst0d <- mgFindBIC(eval.dead)
 bst0d@meta <- "G0d, BIC"
-bst0a <- cnFindBIC(eval.alive, ncol(lung.alive))
+bst0a <- mgFindBIC(eval.alive)
 bst0a@meta <- "G0a, BIC"
 
 ###################################################################
@@ -52,9 +52,9 @@ for(i in 1:length(eval@nets)) {
 }
 eval.alive <- eval
 
-bst1d <- cnFindAIC(eval.dead)
+bst1d <- mgFindAIC(eval.dead)
 bst1d@meta <- "G1d, AIC"
-bst1a <- cnFindAIC(eval.alive)
+bst1a <- mgFindAIC(eval.alive)
 bst1a@meta <- "G1a, AIC"
 
 ###################################################################

@@ -1,4 +1,4 @@
-274f32300b8a03f71e63e60005f91cb6 *DESCRIPTION
+3add449cb76f851e422bef9a06cb37b1 *DESCRIPTION
 d7dd867a6419a8d78105244ba37b8f3a *NAMESPACE
 8621b5b80ca6989281e05ad51ec57ea7 *R/mugnet.class.R
 0c0f73d30deceb9a482dd569dc634298 *R/mugnet.def.R
@@ -12,7 +12,7 @@ c5386146de7b0664403fe546ea388db1 *R/mugnet.sample.R
 07a0ff25bf91ae348dd51ba904a3661a *data/lung.dead.rda
 5c53de60b1b4131f385b2d967b0e9265 *data/lung.rda
 4d6c5e3440892041b54477e2ef5af7a5 *demo/00Index
-1f0e38775c3a8e54f461fc8df779db09 *demo/blung.r
+3ef80aa31752aa2e59d003e26d384b3d *demo/blung.r
 26b429b4d7d83d58834d4f7f347df42d *demo/crabs.r
 d6e2df5971236a9a2c435aa96d48826c *demo/letters.r
 1805ae1d9034a060e1a7a1de709afc44 *man/crabs.Rd
